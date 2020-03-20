@@ -58,8 +58,11 @@ namespace cppdb {
 					break;
 				}
 			}
-			if(!so_ || !connect_) {
+			if(!so_) {
 				throw cppdb_error("cppdb::driver failed to load driver " + name + " - no module found");
+			}
+			if(!connect_) {
+				throw cppdb_error("cppdb::driver failed to connect");
 			}
 		}
 		virtual backend::connection *open(connection_info const &ci)
