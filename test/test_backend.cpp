@@ -189,7 +189,7 @@ void test3(cppdb::ref_ptr<cppdb::backend::connection> sql)
 		stmt = sql->prepare("create table test ( i bigint, r real, t datetime default null, s varchar(5000), bl blob) Engine = innodb");
 	else if(sql->engine() == "postgresql") {
 		if(pq_oid) {
-			stmt = sql->prepare("create table test ( i bigint, r real, t timestamp, s varchar(5000), bl oid)");
+			stmt = sql->prepare("create table test ( i bigint, r real, t timestamp, s varchar(5000), bl lo)");
 			stmt->exec();
 			stmt = sql->prepare(	"CREATE TRIGGER t_test BEFORE UPDATE OR DELETE ON test "
 						"FOR EACH ROW EXECUTE PROCEDURE lo_manage(bl)");
@@ -246,7 +246,7 @@ void test3(cppdb::ref_ptr<cppdb::backend::connection> sql)
 		stmt = sql->prepare("select i,r,t,s from test");
 	res = stmt->query();
 	{
-		TEST(res->cols()==test_blob ? 5 : 4);
+		TEST(res->cols()==(test_blob ? 5 : 4));
 		TEST(res->column_to_name(0)=="i");
 		TEST(res->column_to_name(1)=="r");
 		TEST(res->column_to_name(2)=="t");
@@ -742,6 +742,7 @@ int main(int argc,char **argv)
 		return 1;
 	}
 	std::string cs = argv[1];
+	std::cout << "test_backend:\"" << cs  << '"' << std::endl;
 	try {
 		test(cs);
 	}

@@ -14,17 +14,18 @@ run_test()
 
 
 rm -f all.txt fail.txt
-# 'odbc:@engine=sqlite3;Driver=Sqlite3;database=/tmp/test.db' \
-#	'postgresql:dbname=test' \
 
 for STR in \
 	'postgresql:dbname=test;@blob=bytea' \
-	'sqlite3:db=test.db' \
-	'mysql:user=root;password=root;database=test' \
+	'postgresql:dbname=test' \
+	'sqlite3:db=/tmp/test.db' \
+	'mysql:database=test' \
 	'odbc:@engine=postgresql;Database=test;Driver=Postgresql ANSI' \
-	'odbc:@engine=mysql;UID=root;PWD=root;Database=test;Driver=MySQL' \
+	'odbc:@engine=sqlite3;Driver=Sqlite3;database=/tmp/test.db' \
+	'odbc:@engine=mysql;Database=test;Driver=MySQL' \
 
 do
+	rm -f /tmp/test.db
 	for SUFFIX in '' ';@use_prepared=off' ';@pool_size=5' ';@use_prepared=off;@pool_size=5'
 	do
 		run_test ./test_backend "$STR$SUFFIX"

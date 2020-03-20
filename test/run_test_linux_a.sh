@@ -20,15 +20,17 @@ rm -f all.txt fail.txt
 #	'odbc:DSN=MSSQL;UID=root;PWD=rootroot;@engine=mssql;@utf=wide' \
 
 for STR in \
-	'sqlite3:db=test.db' \
 	'postgresql:dbname=test' \
 	'postgresql:dbname=test;@blob=bytea' \
-	'mysql:database=test;user=root;password=root' \
-	'odbc:Driver=MySQL;UID=root;PWD=root;Database=test;@engine=mysql' \
+	'sqlite3:db=/tmp/test.db' \
+	'mysql:database=test' \
 	'odbc:Driver=PostgreSQL ANSI;Database=test;@engine=postgresql' \
 	'odbc:Driver=Sqlite3;Database=/tmp/test.db;@engine=sqlite3' \
+	'odbc:Driver=MySQL;Database=test;@engine=mysql' \
 
 do
+	rm -f /tmp/test.db
+	
 	for SUFFIX in '' ';@use_prepared=off' ';@pool_size=5' ';@use_prepared=off;@pool_size=5'
 	do
 		run_test ./test_backend "$STR$SUFFIX"
