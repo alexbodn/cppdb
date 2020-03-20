@@ -138,6 +138,11 @@ namespace cppdb {
 		return eof_ || !fetched_;
 	}
 
+	int result::current_col()
+	{
+		return current_col_;
+	}
+
 	void result::clear()
 	{
 		eof_ = true;

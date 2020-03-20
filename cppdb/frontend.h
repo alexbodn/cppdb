@@ -282,6 +282,10 @@ namespace cppdb {
 		///
 		bool empty();
 
+		///
+		/// Returns the current columen.
+		///
+		int current_col();
 		
 		///
 		/// Fetch a value from column \a col (starting from 0) into \a v. Returns false
