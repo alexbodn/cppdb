@@ -34,6 +34,10 @@
 
 #include <iostream>
 
+#if (MYSQL_VERSION_ID >= 80000) && !defined(MARIADB_BASE_VERSION)
+typedef bool my_bool;
+#endif
+
 namespace cppdb {
 
 namespace mysql_backend {	
@@ -1198,11 +1202,13 @@ public:
 				mysql_set_option(MYSQL_OPT_CONNECT_TIMEOUT, &connect_timeout);
 			}
 		}
+		#if (MYSQL_VERSION_ID < 80000) || defined(MARIADB_BASE_VERSION)
 		if(ci.has("opt_guess_connection")) {
 			if(ci.get("opt_guess_connection", 1)) {
 				mysql_set_option(MYSQL_OPT_GUESS_CONNECTION, NULL);
 			}
 		}
+		#endif
 		if(ci.has("opt_local_infile")) {
 			if(unsigned local_infile = ci.get("opt_local_infile", 0)) {
 				mysql_set_option(MYSQL_OPT_CONNECT_TIMEOUT, &local_infile);
@@ -1236,6 +1242,7 @@ public:
 		}
 #endif
 		std::string set_client_ip = ci.get("set_client_ip", "");
+		#if (MYSQL_VERSION_ID < 80000) || defined(MARIADB_BASE_VERSION)
 		if(!set_client_ip.empty()) {
 			mysql_set_option(MYSQL_SET_CLIENT_IP, set_client_ip.c_str());
 		}
@@ -1255,6 +1262,7 @@ public:
 				mysql_set_option(MYSQL_OPT_USE_REMOTE_CONNECTION, NULL);
 			}
 		}
+		#endif
 		if(ci.has("opt_write_timeout")) {
 			if(unsigned write_timeout = ci.get("opt_write_timeout", 0)) {
 				mysql_set_option(MYSQL_OPT_WRITE_TIMEOUT, &write_timeout);
@@ -1275,12 +1283,14 @@ public:
 			}
 		}
 #if MYSQL_VERSION_ID >= 40101
+		#if (MYSQL_VERSION_ID < 80000) || defined(MARIADB_BASE_VERSION)
 		if(ci.has("secure_auth")) {
 			if(unsigned secure = ci.get("secure_auth", 1)) {
 				my_bool value = secure;
 				mysql_set_option(MYSQL_SECURE_AUTH, &value);
 			}
 		}
+		#endif
 #endif
 		std::string set_charset_dir = ci.get("set_charset_dir", "");
 		if(!set_charset_dir.empty()) {
