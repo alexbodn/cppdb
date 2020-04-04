@@ -28,15 +28,19 @@
 extern "C" {
 	#ifdef CPPDB_WITH_SQLITE3 
 	cppdb::backend::connection *cppdb_sqlite3_get_connection(cppdb::connection_info const &cs);
+	void *cppdb_sqlite3_get_dialect();
 	#endif
 	#ifdef CPPDB_WITH_PQ 
 	cppdb::backend::connection *cppdb_postgresql_get_connection(cppdb::connection_info const &cs);
+	void *cppdb_postgresql_get_dialect();
 	#endif
 	#ifdef CPPDB_WITH_ODBC
 	cppdb::backend::connection *cppdb_odbc_get_connection(cppdb::connection_info const &cs);
+	void *cppdb_odbc_get_dialect();
 	#endif
 	#ifdef CPPDB_WITH_MYSQL
 	cppdb::backend::connection *cppdb_mysql_get_connection(cppdb::connection_info const &cs);
+	void *cppdb_mysql_get_dialect();
 	#endif
 }
 
@@ -44,17 +48,21 @@ extern "C" {
 namespace cppdb {
 
 	typedef backend::static_driver::connect_function_type connect_function_type;
+	typedef backend::static_driver::get_dialect_function_type get_dialect_function_type;
 
 	class so_driver : public backend::loadable_driver {
 	public:
 		so_driver(std::string const &name,std::vector<std::string> const &so_list) :
-			connect_(0)
+			connect_(0),
+			get_dialect_(0)
 		{
-			std::string symbol_name = "cppdb_" + name + "_get_connection";
+			std::string connect_symbol_name = "cppdb_" + name + "_get_connection";
+			std::string get_dialect_symbol_name = "cppdb_" + name + "_get_dialect";
 			for(unsigned i=0;i<so_list.size();i++) {
 				so_ = shared_object::open(so_list[i]);
 				if(so_) {
-					so_->safe_resolve(symbol_name,connect_);
+					so_->safe_resolve(connect_symbol_name,connect_);
+					so_->safe_resolve(get_dialect_symbol_name,get_dialect_);
 					break;
 				}
 			}
@@ -62,15 +70,23 @@ namespace cppdb {
 				throw cppdb_error("cppdb::driver failed to load driver " + name + " - no module found");
 			}
 			if(!connect_) {
-				throw cppdb_error("cppdb::driver failed to connect");
+				throw cppdb_error("cppdb::driver failed to load connect");
+			}
+			if(!get_dialect_) {
+				throw cppdb_error("cppdb::driver failed to load dialect");
 			}
 		}
 		virtual backend::connection *open(connection_info const &ci)
 		{
 			return connect_(ci);
 		}
+		virtual ref_ptr<cppdb::backend::dialect> get_dialect()
+		{
+			return *(ref_ptr<cppdb::backend::dialect> *)get_dialect_();
+		}
 	private:
 		connect_function_type connect_;
+		get_dialect_function_type get_dialect_;
 		ref_ptr<shared_object> so_;
 	};
 	
@@ -82,20 +98,31 @@ namespace cppdb {
 
 	backend::connection *driver_manager::connect(connection_info const &conn)
 	{
+		ref_ptr<backend::driver> drv_ptr = find_driver(conn);
+		if (!drv_ptr) {
+			throw cppdb_error("cppdb::driver failed to find driver " + conn.driver);
+		}
+		return drv_ptr->connect(conn);
+	}
+	ref_ptr<backend::driver> driver_manager::find_driver(connection_info const &conn, std::string driver_name)
+	{
 		ref_ptr<backend::driver> drv_ptr;
 		drivers_type::iterator p;
 		{ // get driver
 			mutex::guard lock(lock_);
-			p=drivers_.find(conn.driver);
+			if (driver_name.empty()) {
+				driver_name = conn.driver;
+			}
+			p=drivers_.find(driver_name);
 			if(p!=drivers_.end()) {
 				drv_ptr = p->second;
 			}
 			else {
-				drv_ptr = load_driver(conn);
+				drv_ptr = load_driver(conn, driver_name);
 				drivers_[conn.driver] = drv_ptr;	
 			}
 		}
-		return drv_ptr->connect(conn);
+		return drv_ptr;
 	}
 	void driver_manager::collect_unused()
 	{
@@ -146,7 +173,7 @@ namespace cppdb {
 	#endif
 
 
-	ref_ptr<backend::driver> driver_manager::load_driver(connection_info const &conn)
+	ref_ptr<backend::driver> driver_manager::load_driver(connection_info const &conn, std::string const driver_name)
 	{
 		std::vector<std::string> so_names;
 		std::string module;
@@ -161,12 +188,13 @@ namespace cppdb {
 				sep = next;
 			}
 		}
+		std::string dr_name = driver_name.empty() ? conn.driver : driver_name;
 		if(!(module=conn.get("@module")).empty()) {
 			so_names.push_back(module);
 		}
 		else {
-			std::string so_name1 = CPPDB_LIBRARY_PREFIX "cppdb_" + conn.driver + CPPDB_LIBRARY_SUFFIX_V1;
-			std::string so_name2 = CPPDB_LIBRARY_PREFIX "cppdb_" + conn.driver + CPPDB_LIBRARY_SUFFIX_V2;
+			std::string so_name1 = CPPDB_LIBRARY_PREFIX "cppdb_" + dr_name + CPPDB_LIBRARY_SUFFIX_V1;
+			std::string so_name2 = CPPDB_LIBRARY_PREFIX "cppdb_" + dr_name + CPPDB_LIBRARY_SUFFIX_V2;
 
 			for(unsigned i=0;i<search_paths.size();i++) {
 				so_names.push_back(search_paths[i]+"/" + so_name1);
@@ -177,7 +205,7 @@ namespace cppdb {
 				so_names.push_back(so_name2);
 			}
 		}
-		ref_ptr<backend::driver> drv=new so_driver(conn.driver,so_names);
+		ref_ptr<backend::driver> drv=new so_driver(dr_name,so_names);
 		return drv;
 	}
 

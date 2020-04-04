@@ -373,6 +373,31 @@ namespace cppdb {
 			bool reset_;
 			std::string sql_query_;
 		};
+		//////////////
+		//dialect
+		//////////////
+		class dialect : public backend::dialect {
+			void init()
+			{
+				set_keywords({
+					{"bigint", "integer"},
+					{"type_autoincrement_pk", "integer primary key autoincrement not null"},
+					{"blob", "blob"},
+					{"sequence_last", "select last_insert_rowid()"}
+				});
+			}
+		public:
+			dialect()
+			{
+				init();
+			}
+			dialect(std::vector<std::pair<std::string, std::string>> const &kw)
+			{
+				init();
+				set_keywords(kw);
+			}
+		};
+
 		class connection : public backend::connection {
 		public:
 			connection(connection_info const &ci) :
@@ -493,9 +518,15 @@ namespace cppdb {
 	} // sqlite3_backend
 } // cppdb
 
+cppdb::ref_ptr<cppdb::backend::dialect> sqlite3_dialectp = new cppdb::sqlite3_backend::dialect();
+
 extern "C" {
 	CPPDB_DRIVER_API cppdb::backend::connection *cppdb_sqlite3_get_connection(cppdb::connection_info const &cs)
 	{
 		return new cppdb::sqlite3_backend::connection(cs);
+	}
+	CPPDB_DRIVER_API void *cppdb_sqlite3_get_dialect()
+	{
+		return (void *)&sqlite3_dialectp;
 	}
 }

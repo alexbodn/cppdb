@@ -71,7 +71,8 @@ namespace cppdb {
 		///
 		/// Create a new connection object using connection string \a connectoin_string
 		///
-		backend::connection *connect(std::string const &connectoin_string);
+		backend::connection *connect(std::string const &connection_string);
+		ref_ptr<backend::driver> find_driver(connection_info const &conn, std::string const driver_name="");
 
 	private:
 		driver_manager(driver_manager const &);
@@ -82,7 +83,7 @@ namespace cppdb {
 		#endif
 		driver_manager();
 		
-		ref_ptr<backend::driver> load_driver(connection_info const &ci);
+		ref_ptr<backend::driver> load_driver(connection_info const &ci, std::string const driver_name="");
 
 		typedef std::map<std::string,ref_ptr<backend::driver> > drivers_type;
 		std::vector<std::string> search_paths_;

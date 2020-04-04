@@ -16,6 +16,7 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 #include <cppdb/backend.h>
+#include <cppdb/utils.h>
 #include <cppdb/driver_manager.h>
 #include <sstream>
 #include <iostream>
@@ -40,15 +41,50 @@ int sizes[]={	0, // General 0 length string
 
 
 
+std::string str_replace(
+	std::string sHaystack, std::string sNeedle, std::string sReplace, 
+	size_t nTimes=0)
+{
+	size_t found = 0, pos = 0, c = 0;
+	size_t len = sNeedle.size();
+	size_t replen = sReplace.size();
+	std::string input(sHaystack);
+	
+	do {
+		found = input.find(sNeedle, pos);
+		if (found == std::string::npos) {
+			break;
+		}
+		input.replace(found, len, sReplace);
+		pos = found + replen;
+		++c;
+	} while(!nTimes || c < nTimes);
+	
+	return input;
+}
+
 /*
-void test_template(cppdb::ref_ptr<cppdb::backend::connection> sql)
+void test_template(cppdb::ref_ptr<cppdb::backend::connection> sql, std::string const &//cs
+)
 {
 	cppdb::ref_ptr<cppdb::backend::statement> stmt;
 	cppdb::ref_ptr<cppdb::backend::result> res;
 }
 */
 
-void test1(cppdb::ref_ptr<cppdb::backend::connection> sql)
+void test0(cppdb::ref_ptr<cppdb::backend::connection> /*sql*/, std::string const &/*cs*/)
+{
+	std::cout << "Test the string replace routine" << std::endl;
+	std::string s;
+	s = str_replace("Number Of Beans", " ", "_");
+	TEST(s == "Number_Of_Beans");
+	s = str_replace("ghghjghugtghty", "gh", "X", 2);
+	TEST(s == "XXjghugtghty");
+	s = str_replace("ghghjghugtghty", "gh", "h12");
+	TEST(s == "h12h12jh12ugth12ty");
+}
+
+void test1(cppdb::ref_ptr<cppdb::backend::connection> sql, std::string const &/*cs*/)
 {
 	cppdb::ref_ptr<cppdb::backend::statement> stmt;
 	cppdb::ref_ptr<cppdb::backend::result> res;
@@ -125,10 +161,13 @@ void test1(cppdb::ref_ptr<cppdb::backend::connection> sql)
 	}
 }
 
-void test2(cppdb::ref_ptr<cppdb::backend::connection> sql)
+void test2(cppdb::ref_ptr<cppdb::backend::connection> sql, std::string const &/*cs*/)
 {
 	cppdb::ref_ptr<cppdb::backend::statement> stmt;
 	cppdb::ref_ptr<cppdb::backend::result> res;
+
+	std::string st1 = "", st1_ = "";
+	cppdb::ref_ptr<cppdb::backend::dialect> sql_dialect = sql->get_dialect();
 
 	try {
 		stmt = sql->prepare("drop table test");
@@ -139,17 +178,24 @@ void test2(cppdb::ref_ptr<cppdb::backend::connection> sql)
 
 	std::cout << "Testing sequences types" << std::endl;
 	if(sql->engine() == "sqlite3") {
-		stmt = sql->prepare("create table test ( id integer primary key autoincrement not null, n integer)");
+		st1 = "create table test ( id integer primary key autoincrement not null, n integer)";
 	}
 	else if(sql->engine() == "mysql") {
-		stmt = sql->prepare("create table test ( id integer primary key auto_increment not null, n integer)");
+		st1 = "create table test ( id integer primary key auto_increment not null, n integer)";
 	}
 	else if(sql->engine() == "postgresql" )  {
-		stmt = sql->prepare("create table test ( id  serial  primary key not null, n integer)");
+		st1 = "create table test ( id  serial  primary key not null, n integer)";
 	}
 	else if(sql->engine() == "mssql" )  {
-		stmt = sql->prepare("create table test ( id integer identity(1,1) primary key not null,n integer)");
+		st1 = "create table test ( id integer identity(1,1) primary key not null,n integer)";
 	}
+	stmt = sql->prepare(st1);
+	st1_ = 
+		std::string("create table test ( ") + 
+		"id " + sql_dialect->type_autoincrement_pk() + "," + 
+		"n integer" + 
+	")";
+	TEST(str_replace(st1, " ", "") == str_replace(st1_, " ", ""));
 	
 	if(stmt) {
 		stmt->exec();
@@ -171,7 +217,7 @@ void test2(cppdb::ref_ptr<cppdb::backend::connection> sql)
 }
 
 
-void test3(cppdb::ref_ptr<cppdb::backend::connection> sql)
+void test3(cppdb::ref_ptr<cppdb::backend::connection> sql, std::string const &/*cs*/)
 {
 	cppdb::ref_ptr<cppdb::backend::statement> stmt;
 	cppdb::ref_ptr<cppdb::backend::result> res;
@@ -183,30 +229,50 @@ void test3(cppdb::ref_ptr<cppdb::backend::connection> sql)
 		stmt.reset();
 	}catch(...) {}
 
+	std::string st1 = "", st1_ = "", st2 = "";
+	cppdb::ref_ptr<cppdb::backend::dialect> sql_dialect = sql->get_dialect();
+	
 	if(sql->engine() == "mssql") 
-		stmt = sql->prepare("create table test ( i bigint, r real, t datetime, s varchar(5000), bl varbinary(max))");
-	else if(sql->engine() == "mysql") 
-		stmt = sql->prepare("create table test ( i bigint, r real, t datetime default null, s varchar(5000), bl blob) Engine = innodb");
+		st1 = "create table test ( i bigint, r real, t datetime, s varchar(5000), bl varbinary(max))";
+	else if(sql->engine() == "mysql") {
+		st1 = "create table test ( i bigint, r real, t datetime default null, s varchar(5000), bl blob) Engine = innodb";
+	}
 	else if(sql->engine() == "postgresql") {
 		if(pq_oid) {
-			stmt = sql->prepare("create table test ( i bigint, r real, t timestamp, s varchar(5000), bl lo)");
-			stmt->exec();
-			stmt = sql->prepare(	"CREATE TRIGGER t_test BEFORE UPDATE OR DELETE ON test "
-						"FOR EACH ROW EXECUTE PROCEDURE lo_manage(bl)");
+			st1 = "create table test ( i bigint, r real, t timestamp, s varchar(5000), bl lo)";
+			st2 = "CREATE TRIGGER t_test BEFORE UPDATE OR DELETE ON test "
+						"FOR EACH ROW EXECUTE PROCEDURE lo_manage(bl)";
 		}
 		else {
-			stmt = sql->prepare("create table test ( i bigint, r real, t timestamp, s varchar(5000), bl bytea)");
+			st1 = "create table test ( i bigint, r real, t timestamp, s varchar(5000), bl bytea)";
 		}
 	}
 	else if(sql->engine() == "sqlite3") {
-		stmt = sql->prepare("create table test ( i integer, r real, t timestamp, s varchar(5000), bl blob)");
+		st1 = "create table test ( i integer, r real, t timestamp, s varchar(5000), bl blob)";
 	}
 	else {
 		test_64bit_integer = false;
 		test_blob= false;
-		stmt = sql->prepare("create table test ( i integer, r real, t timestamp, s varchar(5000))");
+		st1 = "create table test ( i integer, r real, t timestamp, s varchar(5000))";
 	}
+	// mimic the same query in the polymorphic dialect
+	st1_ = 
+		std::string("create table test ( ") + 
+			"i " + sql_dialect->type_bigint() + ", " + 
+			"r " + sql_dialect->type_real() + ", " + 
+			"t " + sql_dialect->type_datetime() + ", " + 
+			"s " + sql_dialect->type_varchar(5000) + ", " + 
+			"bl " + sql_dialect->type_blob() + 
+		") " + sql_dialect->create_table_suffix();
+	TEST(str_replace(st1, " ", "") == str_replace(st1_, " ", ""));
+	std::cout << st1 << std::endl;
+	std::cout << st1_ << std::endl;
+	stmt = sql->prepare(st1);
 	stmt->exec();
+	if (!st2.empty()) {
+		stmt = sql->prepare(st2);
+		stmt->exec();
+	}
 	if(sql->engine()=="mssql")
 		stmt = sql->prepare("insert into test values(?,?,?,?,cast(? as varbinary(max)))");
 	else if(test_blob)
@@ -314,7 +380,7 @@ void test3(cppdb::ref_ptr<cppdb::backend::connection> sql)
 	TEST(stmt->affected()==2);
 }
 
-void test4(cppdb::ref_ptr<cppdb::backend::connection> sql)
+void test4(cppdb::ref_ptr<cppdb::backend::connection> sql, std::string const &/*cs*/)
 {
 	cppdb::ref_ptr<cppdb::backend::statement> stmt;
 	cppdb::ref_ptr<cppdb::backend::result> res;
@@ -354,7 +420,7 @@ void test4(cppdb::ref_ptr<cppdb::backend::connection> sql)
 	stmt->exec();
 }
 
-void test5(cppdb::ref_ptr<cppdb::backend::connection> sql)
+void test5(cppdb::ref_ptr<cppdb::backend::connection> sql, std::string const &/*cs*/)
 {
 	cppdb::ref_ptr<cppdb::backend::statement> stmt;
 	cppdb::ref_ptr<cppdb::backend::result> res;
@@ -398,7 +464,7 @@ void test5(cppdb::ref_ptr<cppdb::backend::connection> sql)
 	stmt->exec();
 }
 
-void test6(cppdb::ref_ptr<cppdb::backend::connection> sql)
+void test6(cppdb::ref_ptr<cppdb::backend::connection> sql, std::string const &/*cs*/)
 {
 	cppdb::ref_ptr<cppdb::backend::statement> stmt;
 	cppdb::ref_ptr<cppdb::backend::result> res;
@@ -454,7 +520,7 @@ void test6(cppdb::ref_ptr<cppdb::backend::connection> sql)
 }
 
 
-void test7(cppdb::ref_ptr<cppdb::backend::connection> sql)
+void test7(cppdb::ref_ptr<cppdb::backend::connection> sql, std::string const &/*cs*/)
 {
 	cppdb::ref_ptr<cppdb::backend::statement> stmt;
 	cppdb::ref_ptr<cppdb::backend::result> res;
@@ -573,7 +639,7 @@ void test7(cppdb::ref_ptr<cppdb::backend::connection> sql)
 	stmt->exec();
 }
 
-void test8(cppdb::ref_ptr<cppdb::backend::connection> sql)
+void test8(cppdb::ref_ptr<cppdb::backend::connection> sql, std::string const &/*cs*/)
 {
 	cppdb::ref_ptr<cppdb::backend::statement> stmt;
 	cppdb::ref_ptr<cppdb::backend::result> res;
@@ -626,7 +692,7 @@ void test8(cppdb::ref_ptr<cppdb::backend::connection> sql)
 
 }
 
-void test9(cppdb::ref_ptr<cppdb::backend::connection> sql)
+void test9(cppdb::ref_ptr<cppdb::backend::connection> sql, std::string const &/*cs*/)
 {
 	cppdb::ref_ptr<cppdb::backend::statement> stmt;
 	cppdb::ref_ptr<cppdb::backend::result> res;
@@ -691,11 +757,25 @@ void test9(cppdb::ref_ptr<cppdb::backend::connection> sql)
 
 }
 
+void test10(cppdb::ref_ptr<cppdb::backend::connection> sql, std::string const &cs)
+{
+	std::cout << "Testing SQL dialect" << std::endl;
+	cppdb::connection_info ci(cs);
+	std::string engine = sql->engine();
+	cppdb::ref_ptr<cppdb::backend::driver> drv_ptr = cppdb::driver_manager::instance().find_driver(ci, engine);
+	cppdb::ref_ptr<cppdb::backend::dialect> conn_dialect, test_dialect;
+	conn_dialect = sql->get_dialect();
+	test_dialect = drv_ptr->get_dialect();
+	TEST(engine != "odbc"); // this is not an engine
+	TEST((conn_dialect));
+	TEST(conn_dialect == test_dialect);
+}
 
-void run_test(void (*func)(cppdb::ref_ptr<cppdb::backend::connection>),cppdb::ref_ptr<cppdb::backend::connection> sql)
+
+void run_test(void (*func)(cppdb::ref_ptr<cppdb::backend::connection>, std::string const &),cppdb::ref_ptr<cppdb::backend::connection> sql, std::string cs="")
 {
 	try {
-		func(sql);
+		func(sql, cs);
 	}
 	catch(cppdb::cppdb_error const &e) {
 		std::cerr << "Catched exception " << e.what() << std::endl;
@@ -722,6 +802,7 @@ void test(std::string conn_str)
 			pq_oid = true;
 	}
 
+	run_test(test0,sql);
 	run_test(test1,sql);
 	run_test(test2,sql);
 	run_test(test3,sql);
@@ -731,6 +812,7 @@ void test(std::string conn_str)
 	run_test(test7,sql);
 	run_test(test8,sql);
 	run_test(test9,sql);
+	run_test(test10,sql,conn_str);
 }
 
 

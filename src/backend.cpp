@@ -22,6 +22,9 @@
 
 #include <map>
 #include <list>
+#include <algorithm>
+#include <cctype>
+#include <string>
 
 namespace cppdb {
 	namespace backend {
@@ -33,7 +36,7 @@ namespace cppdb {
 		//statement
 		struct statement::data {};
 
-		statement::statement() : cache_(0) 
+		statement::statement() : cache_(0), connection_(0)
 		{
 		}
 		statement::~statement()
@@ -55,7 +58,30 @@ namespace cppdb {
 			else
 				delete p;
 		}
-		
+
+		long long statement::sequence_last(std::string const &sequence)
+		{
+			std::string q = connection_->sequence_last();
+			if(q.empty()) {
+				q = connection_->get_dialect()->sequence_last();
+			}
+			if(q.empty()) {
+				throw not_supported_by_backend(
+					"cppdb::sequence_last is not supported");
+			}
+			ref_ptr<statement> st = connection_->prepare(q);
+			if(q.find('?')!=std::string::npos) {
+				st->bind(1,sequence);
+			}
+			ref_ptr<result> res = st->query();
+			long long last_id;
+			if(!res->next() || res->cols()!=1 || !res->fetch(0,last_id)) {
+				throw cppdb_error("cppdb::sequence_last failed to fetch last value");
+			}
+			res.reset();
+			st.reset();
+			return last_id;
+		}
 
 		//statements cache//////////////
 
@@ -189,6 +215,7 @@ namespace cppdb {
 		ref_ptr<statement> connection::get_statement(std::string const &q)
 		{
 			ref_ptr<statement> st = create_statement(q);
+			st->set_connection(this);
 			return st;
 		}
 
@@ -203,12 +230,14 @@ namespace cppdb {
 			if(!st)
 				st = prepare_statement(q);
 			st->cache(&cache_);
+			st->set_connection(this);
 			return st;
 		}
 
 		ref_ptr<statement> connection::get_prepared_uncached_statement(std::string const &q)
 		{
 			ref_ptr<statement> st = prepare_statement(q);
+			st->set_connection(this);
 			return st;
 		}
 
@@ -216,12 +245,14 @@ namespace cppdb {
 			d(new connection::data),
 			pool_(0),
 			once_called_(0),
-			recyclable_(1)
+			recyclable_(1),
+			dialect_(0)
 		{
 			int cache_size = info.get("@stmt_cache_size",64);
 			if(cache_size > 0) {
 				cache_.set_size(cache_size);
 			}
+			sequence_last_ = info.get("@sequence_last", "");
 			std::string def_is_prep = info.get("@use_prepared","on");
 			if(def_is_prep == "on")
 				default_is_prepared_ = 1;
@@ -332,10 +363,54 @@ namespace cppdb {
 				driver.reset();
 			}
 		}
-		
+		void dialect::set_keywords(std::vector<std::pair<std::string, std::string>> const &kw)
+		{
+			for (const std::pair<std::string, std::string> & word : kw) {
+				set_keyword(word.first, word.second);
+			}
+		}
+		void dialect::init()
+		{
+			set_keywords({
+				{"datetime", "timestamp"},
+				{"blob", ""}
+			});
+		}
+		///
+		/// get the value for the name
+		///
+		std::string const &dialect::get_keyword(std::string const &name, std::string const &default_value) const
+		{
+			properties_type::const_iterator p=keywords_.find(name);
+			return (p==keywords_.end()) ? default_value : p->second;
+		}
+		///
+		/// render type with optional parameters in parantheses
+		///
+		std::string dialect::render_type(std::string const &name, int param, int param2) const
+		{
+			std::string str = name;
+			std::transform(
+				str.begin(), str.end(), str.begin(),
+				[](unsigned char chr){ return std::tolower(chr); }
+			);
+			str = type_name(str);
+			if (param >= 0) {
+				str += ("(" + std::to_string(param));
+				if (param2 >= 0) {
+					str += (", " + std::to_string(param2));
+				}
+				str += ")";
+			}
+			return str;
+		}
 		connection *driver::connect(connection_info const &cs)
 		{
 			return open(cs);
+		}
+		ref_ptr<cppdb::backend::dialect> driver::get_dialect()
+		{
+			throw cppdb_error("cppdb::backend::driver: this driver does not implement a dialog");
 		}
 		bool loadable_driver::in_use()
 		{

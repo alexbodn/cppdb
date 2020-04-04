@@ -1158,6 +1158,32 @@ namespace prep {
 
 } // prep
 
+//////////////
+//dialect
+//////////////
+class dialect : public backend::dialect {
+	void init()
+	{
+		set_keywords({
+			{"type_autoincrement_pk", "integer primary key auto_increment not null"},
+			{"datetime", "datetime default null"},
+			{"blob", "blob"},
+			{"sequence_last", "select last_insert_id()"},
+			{"create_table_suffix", "Engine = innodb"}
+		});
+	}
+public:
+	dialect()
+	{
+		init();
+	}
+	dialect(std::vector<std::pair<std::string, std::string>> const &kw)
+	{
+		init();
+		set_keywords(kw);
+	}
+};
+
 class connection;
 
 class connection : public backend::connection {
@@ -1424,13 +1450,18 @@ private:
 	MYSQL *conn_;
 };
 
-
 } // backend
 } // cppdb
+
+cppdb::ref_ptr<cppdb::backend::dialect> mysql_dialectp = new cppdb::mysql_backend::dialect();
 
 extern "C" {
 	CPPDB_DRIVER_API cppdb::backend::connection *cppdb_mysql_get_connection(cppdb::connection_info const &cs)
 	{
 		return new cppdb::mysql_backend::connection(cs);
+	}
+	CPPDB_DRIVER_API void *cppdb_mysql_get_dialect()
+	{
+		return (void *)&mysql_dialectp;
 	}
 }

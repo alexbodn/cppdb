@@ -42,6 +42,8 @@ namespace cppdb {
 			bytea_type
 		} blob_type;
 
+		std::string default_blob("lo");
+
 		class pqerror : public cppdb_error {
 		public:
 			pqerror(char const *msg) : cppdb_error(message(msg)) {}
@@ -597,7 +599,7 @@ namespace cppdb {
 					}
 					char const *val = PQgetvalue(res,0,0);
 					if(!val || *val==0)
-						throw pqerror("Failed to get value for sequecne id");
+						throw pqerror("Failed to get value for sequence id");
 					fmt_.str(val);
 					fmt_.clear();
 					fmt_ >> rowid;
@@ -650,6 +652,30 @@ namespace cppdb {
 			std::string prepared_id_;
 			std::stringstream fmt_;
 			blob_type blob_;
+		};
+
+		//////////////
+		//dialect
+		//////////////
+		class dialect : public backend::dialect {
+			void init()
+			{
+				set_keywords({
+					{"type_autoincrement_pk", "serial primary key not null"},
+					{"blob", default_blob},
+					{"sequence_last", "select currval(?)"}
+				});
+			}
+		public:
+			dialect()
+			{
+				init();
+			}
+			dialect(std::vector<std::pair<std::string, std::string>> const &kw)
+			{
+				init();
+				set_keywords(kw);
+			}
 		};
 
 		class connection : public backend::connection {
@@ -749,6 +775,9 @@ namespace cppdb {
 					blob_ = lo_type;
 				else 
 					throw pqerror("@blob property should be either lo or bytea");
+				if (blob != default_blob) {
+					dialect_ = new dialect({{"blob", blob}});
+				}
 
 				conn_ = 0;
 				try {
@@ -788,10 +817,15 @@ namespace cppdb {
 	} // backend
 } // cppdb
 
+cppdb::ref_ptr<cppdb::backend::dialect> postgresql_dialectp = new cppdb::postgresql::dialect();
 
 extern "C" {
 	CPPDB_DRIVER_API cppdb::backend::connection *cppdb_postgresql_get_connection(cppdb::connection_info const &cs)
 	{
 		return new cppdb::postgresql::connection(cs);
+	}
+	CPPDB_DRIVER_API void *cppdb_postgresql_get_dialect()
+	{
+		return (void *)&postgresql_dialectp;
 	}
 }

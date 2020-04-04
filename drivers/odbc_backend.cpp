@@ -21,6 +21,7 @@
 #endif
 #include <cppdb/backend.h>
 #include <cppdb/utils.h>
+#include <cppdb/driver_manager.h>
 #include <cppdb/numeric_util.h>
 #include <list>
 #include <vector>
@@ -749,31 +750,6 @@ public:
 		}
 
 	}
-	virtual long long sequence_last(std::string const &sequence) 
-	{
-		ref_ptr<statement> st;
-		if(!sequence_last_.empty()) {
-			st = new statement(sequence_last_,dbc_,wide_,false);
-			st->bind(1,sequence);
-		}
-		else if(!last_insert_id_.empty()) {
-			st = new statement(last_insert_id_,dbc_,wide_,false);
-		}
-		else {
-			throw not_supported_by_backend(
-				"cppdb::odbc::sequence_last is not supported by odbc backend "
-				"unless properties @squence_last, @last_insert_id are specified "
-				"or @engine is one of mysql, sqlite3, postgresql, mssql");
-		}
-		ref_ptr<result> res = st->query();
-		long long last_id;
-		if(!res->next() || res->cols()!=1 || !res->fetch(0,last_id)) {
-			throw cppdb_error("cppdb::odbc::sequence_last failed to fetch last value");
-		}
-		res.reset();
-		st.reset();
-		return last_id;
-	}
 	virtual unsigned long long affected() 
 	{
 		SQLLEN rows = 0;
@@ -997,8 +973,6 @@ private:
 	int params_no_;
 
 	friend class connection;
-	std::string sequence_last_;
-	std::string last_insert_id_;
 	bool prepared_;
 
 };
@@ -1008,8 +982,13 @@ public:
 
 	connection(connection_info const &ci) :
 		backend::connection(ci),
-		ci_(ci)
+		ci_(ci),
+		dialect_(0)
 	{
+		ref_ptr<backend::driver> drv_ptr = cppdb::driver_manager::instance().find_driver(ci, engine());
+		if (drv_ptr) {
+			set_dialect(drv_ptr->get_dialect());
+		}
 		std::string utf_mode = ci.get("@utf","narrow");
 		
 		if(utf_mode == "narrow")
@@ -1106,25 +1085,6 @@ public:
 			std::string eng=engine();
 			if(eng == "postgresql") prepared = true;
 		std::auto_ptr<statement> st(new statement(q,dbc_,wide_,prepared));
-		std::string seq = ci_.get("@sequence_last","");
-		if(seq.empty()) {
-			std::string eng=engine();
-			if(eng == "sqlite3")
-				st->last_insert_id_ = "select last_insert_rowid()";
-			else if(eng == "mysql")
-				st->last_insert_id_ = "select last_insert_id()";
-			else if(eng == "postgresql")
-				st->sequence_last_ = "select currval(?)";
-			else if(eng == "mssql")
-				st->last_insert_id_ = "select @@identity";
-		}
-		else {
-			if(seq.find('?')==std::string::npos)
-				st->last_insert_id_ = seq;
-			else
-				st->sequence_last_ = seq;
-		}
-
 		return st.release();		
 	}
 
@@ -1171,11 +1131,28 @@ public:
 		check_odbc_error(r,dbc_,SQL_HANDLE_DBC,wide_);
 	}
 
+	///
+	/// Set/Get the engine dialect
+	///
+	virtual void set_dialect(ref_ptr<cppdb::backend::dialect> d)
+	{
+		dialect_ = d;
+	}
+	virtual ref_ptr<cppdb::backend::dialect> get_dialect()
+	{
+		if (!dialect_) {
+			std::string error = "cppdb::backend::odbc error: dialect '";
+			throw cppdb_error(error + engine() + "' not supported");
+		}
+		return dialect_;
+	}
+
 private:
 	SQLHENV env_;
 	SQLHDBC dbc_;
 	bool wide_;
 	connection_info ci_;
+	ref_ptr<cppdb::backend::dialect> dialect_;
 };
 
 
@@ -1186,5 +1163,10 @@ extern "C" {
 	CPPDB_DRIVER_API cppdb::backend::connection *cppdb_odbc_get_connection(cppdb::connection_info const &cs)
 	{
 		return new cppdb::odbc_backend::connection(cs);
+	}
+	CPPDB_DRIVER_API void *cppdb_odbc_get_dialect()
+	{
+		//odbc does not provide an SQL dialect. use the dialect of the engine
+		return NULL;
 	}
 }

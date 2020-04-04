@@ -22,6 +22,7 @@
 #include <string>
 #include <memory>
 #include <map>
+#include <vector>
 #include <typeinfo>
 #include <cppdb/defs.h>
 #include <cppdb/errors.h>
@@ -212,7 +213,118 @@ namespace cppdb {
 			std::auto_ptr<data> d;
 		};
 
+		/// \cond INTERNAL	
+		class CPPDB_API dialect : public ref_counted {
+		protected:
+			typedef std::map<std::string, std::string> properties_type;
+			properties_type keywords_;
+			///
+			/// set the keword(s) value for the name
+			///
+			void set_keyword(std::string const &name, std::string const &value)
+			{
+				keywords_[name] = value;
+			}
+			void set_keywords(std::vector<std::pair<std::string, std::string>> const &kw);
+			///
+			/// get the value for the name
+			///
+			std::string const &get_keyword(std::string const &name, std::string const &default_value) const;
+			///
+			/// translate the type name acording to this dialect
+			///
+			virtual std::string const &type_name(std::string const &name) const
+			{
+				return get_keyword(name, name);
+			}
+			virtual void init();
+		public:
+			dialect()
+			{
+				init();
+			}
+			dialect(std::vector<std::pair<std::string, std::string>> const &kw)
+			{
+				init();
+				set_keywords(kw);
+			}
+			///
+			/// render type with optional parameters in parantheses
+			///
+			virtual std::string render_type(std::string const &name, int param=-1, int param2=-1) const;
+			///
+			/// Return name of the type for bigint
+			///
+			virtual std::string type_bigint() const
+			{
+				return render_type("bigint");
+			}
+			///
+			/// Return name of the type for real
+			///
+			virtual std::string type_real(int size=-1) const
+			{
+				return render_type("real", size);
+			}
+			///
+			/// Return name of the type for decimal
+			///
+			virtual std::string type_decimal(int precision, int scale=-1) const
+			{
+				return render_type("decimal", precision, scale);
+			}
+			///
+			/// Return name of the type for n?varchar
+			///
+			virtual std::string type_varchar(int length=-1) const
+			{
+				return render_type("varchar", length);
+			}
+			virtual std::string type_nvarchar(int length=-1) const
+			{
+				return render_type("nvarchar", length);
+			}
+			///
+			/// Return name of the type for datetime
+			///
+			virtual std::string type_datetime() const
+			{
+				return render_type("datetime");
+			}
+			///
+			/// Return name of the type for blob
+			///
+			virtual std::string type_blob() const
+			{
+				return get_keyword("blob", "");
+			}
+			///
+			/// Return type for autoincrement pk
+			///
+			virtual std::string type_autoincrement_pk() const
+			{
+				return get_keyword("type_autoincrement_pk", "");
+			}
+			///
+			/// SQL for last insert id
+			///
+			virtual std::string sequence_last() const
+			{
+				return get_keyword("sequence_last", "");
+			}
+			///
+			/// create table suffix
+			///
+			virtual std::string create_table_suffix() const
+			{
+				return get_keyword("create_table_suffix", "");
+			}
+		};
+		/// \endcond
+
 		class statements_cache;
+		class connection;
+
 
 		///
 		/// \brief This class represents a statement that can be either executed or queried for result
@@ -366,7 +478,7 @@ namespace cppdb {
 			///
 			/// MUST throw not_supported_by_backend() if such option is not supported by the DB engine.
 			///
-			virtual long long sequence_last(std::string const &sequence) = 0;
+			virtual long long sequence_last(std::string const &sequence);
 			///
 			/// Return the number of affected rows by last statement.
 			///
@@ -386,6 +498,14 @@ namespace cppdb {
 			// Caching support
 			static void dispose(statement *selfp);
 			
+			///
+			/// let the statement point to it's connection
+			///
+			void set_connection(connection *c)
+			{
+				connection_ = ref_ptr<connection>(c);
+			}
+			
 			void cache(statements_cache *c);
 			statement();
 			virtual ~statement() ;
@@ -394,6 +514,7 @@ namespace cppdb {
 			struct data;
 			std::auto_ptr<data> d;
 			statements_cache *cache_;
+			ref_ptr<connection> connection_;
 		};
 	
 		/// \cond INTERNAL	
@@ -414,8 +535,6 @@ namespace cppdb {
 		};
 
 		/// \endcond
-
-		class connection;
 
 		///
 		/// \brief This class represents a driver that creates connections for 
@@ -442,6 +561,10 @@ namespace cppdb {
 			/// and unregistering them
 			///
 			virtual connection *connect(connection_info const &cs);
+			///
+			/// Get the engine dialect
+			///
+			virtual ref_ptr<cppdb::backend::dialect> get_dialect();
 		};
 	
 		///
@@ -469,6 +592,10 @@ namespace cppdb {
 			/// This function type is the function that is generally resolved from the shared objects when loaded
 			///
 			typedef cppdb::backend::connection *cppdb_backend_connect_function(connection_info const &ci);
+			///
+			/// This function type is the function to fetch the dialect from the shared objects when loaded
+			///
+			typedef void *cppdb_backend_get_dialect_function();
 		}
 
 
@@ -481,6 +608,10 @@ namespace cppdb {
 			/// Typedef of the function pointer that is used for creation of connection objects.
 			///
 			typedef cppdb_backend_connect_function *connect_function_type;
+			///
+			/// Typedef of the function pointer that is used for fetching dialect objects.
+			///
+			typedef cppdb_backend_get_dialect_function *get_dialect_function_type;
 
 			///
 			/// Create a new driver that creates connection using function \a c
@@ -495,8 +626,16 @@ namespace cppdb {
 			/// Create new connection - basically calls the function to create the object
 			///
 			backend::connection *open(connection_info const &ci);
+			///
+			/// Get the engine dialect
+			///
+			virtual ref_ptr<cppdb::backend::dialect> get_dialect() const
+			{
+				return *(ref_ptr<cppdb::backend::dialect> *)get_dialect_();
+			}
 		private:
 			connect_function_type connect_;
+			get_dialect_function_type get_dialect_;
 		};
 
 
@@ -617,6 +756,20 @@ namespace cppdb {
 			/// that prevents its reuse it should be called with false parameter.
 			/// 
 			void recyclable(bool value);
+			///
+			/// Get the engine dialect
+			///
+			virtual ref_ptr<cppdb::backend::dialect> get_dialect()
+			{
+				return (dialect_) ? dialect_ : driver_->get_dialect();
+			}
+			///
+			/// SQL for last insert id
+			///
+			virtual std::string sequence_last() const
+			{
+				return sequence_last_;
+			}
 
 		private:
 
@@ -629,6 +782,9 @@ namespace cppdb {
 			unsigned once_called_ : 1;
 			unsigned recyclable_ : 1;
 			unsigned reserverd_ : 29;
+			std::string sequence_last_;
+		protected:
+			ref_ptr<cppdb::backend::dialect> dialect_;
 		};
 
 	} // backend
