@@ -105,13 +105,44 @@ int main(int argc,char **argv)
 		
 		timer tm;
 
+		#define SELECT "select val from test where id = ?"
+		#define HELLO "Hello World"
+
 		tm.start();
-		
 		for(int j=0;j<max_val * 10;j++) {
 			std::string v;
-			sql << "select val from test where id = ?" << (rand() % max_val)<< cppdb::row >> v;
-			if(v!="Hello World")
+			sql << SELECT << (rand() % max_val)<< cppdb::row >> v;
+			if(v!=HELLO)
 				throw std::runtime_error("Wrong");
+		}
+		tm.stop();
+		std::cout << "Passed " << tm.diff() << " seconds" << std::endl;
+
+		tm.start();
+		std::string select(SELECT);
+		std::string hello(HELLO);
+		for(int j=0;j<max_val * 10;j++) {
+			std::string v;
+			sql << select << (rand() % max_val)<< cppdb::row >> v;
+			if(v!=hello)
+				throw std::runtime_error("Wrong");
+		}
+		tm.stop();
+		std::cout << "Passed " << tm.diff() << " seconds" << std::endl;
+
+		tm.start();
+		std::string _hello(HELLO);
+		cppdb::statement stmt = sql.prepare(SELECT);
+		for(int j=max_val * 10;j>-1;--j) {
+			std::string v;
+			int id = rand() % max_val;
+			stmt.bind(1, id);
+			cppdb::result res = stmt.query();
+			if (!res.next() || !res.fetch(0, v))
+				throw std::runtime_error("didn't fetch");
+			if(v!=_hello)
+				throw std::runtime_error("Wrong");
+			//stmt.reset();
 		}
 		tm.stop();
 		std::cout << "Passed " << tm.diff() << " seconds" << std::endl;
