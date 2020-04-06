@@ -169,6 +169,8 @@ namespace cppdb {
 			{
 				if(do_isnull(col))
 					return false;
+				// TODO: the blob might have been saved with another blob type.
+				// so the field should be checked for the actual type.
 				if(blob_ == bytea_type) {
 					unsigned char *val=(unsigned char*)PQgetvalue(res_,current_,col);
 					size_t len = 0;

@@ -406,7 +406,7 @@ namespace cppdb {
 			{
 				std::string dbname=ci.get("db");
 				if(dbname.empty()) {
-					throw cppdb_error("sqlite3:database file (db propery) not specified");
+					throw cppdb_error("sqlite3:database file (db property) not specified");
 				}
 
 				std::string mode = ci.get("mode","create");
@@ -418,7 +418,7 @@ namespace cppdb {
 				else if(mode == "readwrite")
 					flags = SQLITE_OPEN_READWRITE;
 				else {
-					throw cppdb_error("sqlite3:invalid mode propery, expected "
+					throw cppdb_error("sqlite3:invalid mode property, expected "
 								" 'create' (default), 'readwrite' or 'readonly' values");
 				}
 
