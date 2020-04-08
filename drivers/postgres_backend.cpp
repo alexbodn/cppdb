@@ -672,11 +672,13 @@ namespace cppdb {
 			dialect()
 			{
 				init();
+std::cout << "======dialect()" << keywords_.dump() << std::endl;
 			}
 			dialect(std::vector<std::pair<std::string, std::string>> const &kw)
 			{
 				init();
 				set_keywords(kw);
+std::cout << "======dialect(kw)" << keywords_.dump() << std::endl;
 			}
 		};
 
@@ -735,24 +737,11 @@ namespace cppdb {
 			{
 				return do_escape(b,e-b);
 			}
-			std::string pq_string(connection_info const &ci)
-			{
-				std::map<std::string,std::string>::const_iterator p;
-				std::string pq_str;
-				for(p=ci.properties.begin();p!=ci.properties.end();p++) {
-					if(p->first.empty() || p->first[0]=='@')
-						continue;
-					pq_str+=p->first;
-					pq_str+="='";
-					pq_str+=escape_for_conn(p->second);
-					pq_str+="' ";
-				}
-				return pq_str;
-			}
-			std::string escape_for_conn(std::string const &v)
+			static std::string escape_for_conn(std::string const &v)
 			{
 				std::string res;
-				res.reserve(v.size());
+				res.reserve(2 + v.size());
+				res += "'";
 				for(unsigned i=0;i<v.size();i++) {
 					if(v[i]=='\\')
 						res+="\\\\";
@@ -761,6 +750,7 @@ namespace cppdb {
 					else
 						res+=v[i];
 				}
+				res += "'";
 				return res;
 			}
 			connection(connection_info const &ci) :
@@ -768,7 +758,7 @@ namespace cppdb {
 				conn_(0),
 				prepared_id_(0)
 			{
-				std::string pq=pq_string(ci);
+				std::string pq=ci.conn_str(" ", escape_for_conn);
 				std::string blob = ci.get("@blob","lo");
 				
 				if(blob == "bytea")

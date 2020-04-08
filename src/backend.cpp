@@ -26,6 +26,8 @@
 #include <cctype>
 #include <string>
 
+#include <iostream>
+
 namespace cppdb {
 	namespace backend {
 		//result
@@ -365,8 +367,8 @@ namespace cppdb {
 		}
 		void dialect::set_keywords(std::vector<std::pair<std::string, std::string>> const &kw)
 		{
-			for (const std::pair<std::string, std::string> & word : kw) {
-				set_keyword(word.first, word.second);
+			for (const std::pair<std::string, std::string> & pr : kw) {
+				set_keyword(pr.first, pr.second);
 			}
 		}
 		void dialect::init()
@@ -375,14 +377,6 @@ namespace cppdb {
 				{"datetime", "timestamp"},
 				{"blob", ""}
 			});
-		}
-		///
-		/// get the value for the name
-		///
-		std::string const &dialect::get_keyword(std::string const &name, std::string const &default_value) const
-		{
-			properties_type::const_iterator p=keywords_.find(name);
-			return (p==keywords_.end()) ? default_value : p->second;
 		}
 		///
 		/// render type with optional parameters in parantheses

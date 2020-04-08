@@ -65,11 +65,59 @@ namespace cppdb {
 	CPPDB_API void parse_connection_string(	std::string const &cs,
 						std::string &driver_name,
 						std::map<std::string,std::string> &props);
+	///
+	///replace nTimes occurences of sNeedle in sHaystack by sReplace
+	///if nTimes == 0, replace all occurences thereof
+	///
+	CPPDB_API std::string str_replace(
+						std::string const &sHaystack, std::string const &sNeedle, 
+						std::string const &sReplace, size_t nTimes=0);
+
+	///
+	/// \brief Class that represents parsed key value properties file
+	///
+	class CPPDB_API properties {
+	public:
+		///
+		/// Type that represent key, values set
+		///
+		typedef std::map<std::string,std::string> properties_type;
+		
+		///
+		/// Cheks if property \a prop, has been given in connection string.
+		///
+		bool has(std::string const &prop) const;
+		///
+		/// Get property \a prop, returning \a default_value if not defined.
+		///
+		std::string const &get(std::string const &prop,std::string const &default_value=std::string()) const;
+		///
+		/// Get numeric value for property \a prop, returning \a default_value if not defined. 
+		/// If the value is not a number, throws cppdb_error.
+		///
+		int get(std::string const &prop,int default_value) const;
+		///
+		/// set a property value
+		///
+		void set(std::string const &key, std::string const &value)
+		{
+			properties_[key] = value;
+		}
+		std::string dump() const;
+		
+		properties() {}
+		properties(properties_type const &props) : properties_(props) {}
+	protected:
+		///
+		/// The std::map of key value properties.
+		///
+		properties_type properties_;
+	};
 
 	///
 	/// \brief Class that represents parsed connection string
 	///
-	class CPPDB_API connection_info {
+	class CPPDB_API connection_info : public properties {
 	public:
 		///
 		/// The original connection string
@@ -79,29 +127,6 @@ namespace cppdb {
 		/// The driver name
 		///
 		std::string driver;
-		///
-		/// Type that represent key, values set
-		///
-		typedef std::map<std::string,std::string> properties_type;
-		///
-		/// The std::map of key value properties.
-		///
-		properties_type properties;
-		
-		///
-		/// Cheks if property \a prop, has been given in connection string.
-		///
-		bool has(std::string const &prop) const;
-		///
-		/// Get property \a prop, returning \a default_value if not defined.
-		///
-		std::string get(std::string const &prop,std::string const &default_value=std::string()) const;
-		///
-		/// Get numeric value for property \a prop, returning \a default_value if not defined. 
-		/// If the value is not a number, throws cppdb_error.
-		///
-		int get(std::string const &prop,int default_value) const;
-	
 		///
 		/// Default constructor - empty info
 		///	
@@ -114,8 +139,9 @@ namespace cppdb {
 		explicit connection_info(std::string const &cs) :
 			connection_string(cs)
 		{
-			parse_connection_string(cs,driver,properties);
+			parse_connection_string(cs,driver,properties_);
 		}
+		std::string conn_str(std::string const &delimiter, std::string (*formater)(std::string const &)=NULL) const;
 
 	};
 

@@ -26,6 +26,7 @@
 #include <typeinfo>
 #include <cppdb/defs.h>
 #include <cppdb/errors.h>
+#include <cppdb/utils.h>
 #include <cppdb/ref_ptr.h>
 #include <cppdb/connection_specific.h>
 
@@ -33,6 +34,8 @@
 #ifdef __BORLANDC__
 #include <cppdb/pool.h>
 #endif
+
+#import <iostream>
 
 namespace cppdb {
 	class connection_info;
@@ -216,20 +219,22 @@ namespace cppdb {
 		/// \cond INTERNAL	
 		class CPPDB_API dialect : public ref_counted {
 		protected:
-			typedef std::map<std::string, std::string> properties_type;
-			properties_type keywords_;
+			properties keywords_;
 			///
 			/// set the keword(s) value for the name
 			///
 			void set_keyword(std::string const &name, std::string const &value)
 			{
-				keywords_[name] = value;
+				keywords_.set(name, value);
 			}
 			void set_keywords(std::vector<std::pair<std::string, std::string>> const &kw);
 			///
 			/// get the value for the name
 			///
-			std::string const &get_keyword(std::string const &name, std::string const &default_value) const;
+			std::string const &get_keyword(std::string const &name, std::string const &default_value) const
+			{
+				return keywords_.get(name, default_value);
+			}
 			///
 			/// translate the type name acording to this dialect
 			///
@@ -296,7 +301,7 @@ namespace cppdb {
 			///
 			virtual std::string type_blob() const
 			{
-				return get_keyword("blob", "");
+				return render_type("blob");
 			}
 			///
 			/// Return type for autoincrement pk
@@ -781,7 +786,7 @@ namespace cppdb {
 			unsigned default_is_prepared_ : 1;
 			unsigned once_called_ : 1;
 			unsigned recyclable_ : 1;
-			unsigned reserverd_ : 29;
+			unsigned reserved_ : 29;
 			std::string sequence_last_;
 		protected:
 			ref_ptr<cppdb::backend::dialect> dialect_;

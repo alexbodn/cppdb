@@ -1015,12 +1015,12 @@ public:
 			dbc_created = true;
 			if(wide_) {
 				r = SQLDriverConnectW(dbc_,0,
-							(SQLWCHAR*)tosqlwide(conn_str(ci)).c_str(),
+							(SQLWCHAR*)tosqlwide(ci.conn_str(";")).c_str(),
 							SQL_NTS,0,0,0,SQL_DRIVER_COMPLETE);
 			}
 			else {
 				r = SQLDriverConnectA(dbc_,0,
-							(SQLCHAR*)conn_str(ci).c_str(),
+							(SQLCHAR*)ci.conn_str(";").c_str(),
 							SQL_NTS,0,0,0,SQL_DRIVER_COMPLETE);
 			}
 			check_odbc_error(r,dbc_,SQL_HANDLE_DBC,wide_);
@@ -1036,21 +1036,6 @@ public:
 		}
 	}
 
-	std::string conn_str(connection_info const &ci)
-	{
-		std::map<std::string,std::string>::const_iterator p;
-		std::string str;
-		for(p=ci.properties.begin();p!=ci.properties.end();p++) {
-			if(p->first.empty() || p->first[0]=='@')
-				continue;
-			str+=p->first;
-			str+="=";
-			str+=p->second;
-			str+=";";
-		}
-		return str;
-	}
-	
 	~connection()
 	{
 		SQLDisconnect(dbc_);

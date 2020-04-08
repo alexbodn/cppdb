@@ -40,29 +40,6 @@ int sizes[]={	0, // General 0 length string
 	    };
 
 
-
-std::string str_replace(
-	std::string sHaystack, std::string sNeedle, std::string sReplace, 
-	size_t nTimes=0)
-{
-	size_t found = 0, pos = 0, c = 0;
-	size_t len = sNeedle.size();
-	size_t replen = sReplace.size();
-	std::string input(sHaystack);
-	
-	do {
-		found = input.find(sNeedle, pos);
-		if (found == std::string::npos) {
-			break;
-		}
-		input.replace(found, len, sReplace);
-		pos = found + replen;
-		++c;
-	} while(!nTimes || c < nTimes);
-	
-	return input;
-}
-
 /*
 void test_template(cppdb::ref_ptr<cppdb::backend::connection> sql, std::string const &//cs
 )
@@ -76,11 +53,11 @@ void test0(cppdb::ref_ptr<cppdb::backend::connection> /*sql*/, std::string const
 {
 	std::cout << "Test the string replace routine" << std::endl;
 	std::string s;
-	s = str_replace("Number Of Beans", " ", "_");
+	s = cppdb::str_replace("Number Of Beans", " ", "_");
 	TEST(s == "Number_Of_Beans");
-	s = str_replace("ghghjghugtghty", "gh", "X", 2);
+	s = cppdb::str_replace("ghghjghugtghty", "gh", "X", 2);
 	TEST(s == "XXjghugtghty");
-	s = str_replace("ghghjghugtghty", "gh", "h12");
+	s = cppdb::str_replace("ghghjghugtghty", "gh", "h12");
 	TEST(s == "h12h12jh12ugth12ty");
 }
 
@@ -195,7 +172,7 @@ void test2(cppdb::ref_ptr<cppdb::backend::connection> sql, std::string const &/*
 		"id " + sql_dialect->type_autoincrement_pk() + "," + 
 		"n integer" + 
 	")";
-	TEST(str_replace(st1, " ", "") == str_replace(st1_, " ", ""));
+	TEST(cppdb::str_replace(st1, " ", "") == cppdb::str_replace(st1_, " ", ""));
 	
 	if(stmt) {
 		stmt->exec();
@@ -264,9 +241,7 @@ void test3(cppdb::ref_ptr<cppdb::backend::connection> sql, std::string const &/*
 			"s " + sql_dialect->type_varchar(5000) + ", " + 
 			"bl " + sql_dialect->type_blob() + 
 		") " + sql_dialect->create_table_suffix();
-	TEST(str_replace(st1, " ", "") == str_replace(st1_, " ", ""));
-	std::cout << st1 << std::endl;
-	std::cout << st1_ << std::endl;
+	TEST(cppdb::str_replace(st1, " ", "") == cppdb::str_replace(st1_, " ", ""));
 	stmt = sql->prepare(st1);
 	stmt->exec();
 	if (!st2.empty()) {
@@ -385,7 +360,7 @@ void test4(cppdb::ref_ptr<cppdb::backend::connection> sql, std::string const &/*
 	cppdb::ref_ptr<cppdb::backend::statement> stmt;
 	cppdb::ref_ptr<cppdb::backend::result> res;
 
-	std::cout << "Tesing transactions" << std::endl;
+	std::cout << "Testing transactions" << std::endl;
 	stmt = sql->prepare("DELETE FROM test where 1<>0");
 	stmt->exec();
 	sql->begin();
@@ -425,7 +400,7 @@ void test5(cppdb::ref_ptr<cppdb::backend::connection> sql, std::string const &/*
 	cppdb::ref_ptr<cppdb::backend::statement> stmt;
 	cppdb::ref_ptr<cppdb::backend::result> res;
 
-	std::cout << "Tesing variable length data handing: text" << std::endl;
+	std::cout << "Testing variable length data handing: text" << std::endl;
 	sql->begin();
 	stmt = sql->prepare("insert into test(i,s) values(?,?)");
 	for(unsigned i=0;i<sizeof(sizes)/sizeof(int);i++) {
@@ -470,7 +445,7 @@ void test6(cppdb::ref_ptr<cppdb::backend::connection> sql, std::string const &/*
 	cppdb::ref_ptr<cppdb::backend::result> res;
 
 	if(test_blob) {	
-		std::cout << "Tesing variable length data handing: blob" << std::endl;
+		std::cout << "Testing variable length data handing: blob" << std::endl;
 
 		sql->begin();
 		if(sql->engine()=="mssql")

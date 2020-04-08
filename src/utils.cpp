@@ -24,6 +24,8 @@
 #include <sstream>
 #include <locale>
 
+#include <iostream>
+
 namespace cppdb {
 	std::string format_time(std::tm const &v)
 	{
@@ -151,24 +153,47 @@ namespace cppdb {
 			}
 		}
 	} //
-	std::string connection_info::get(std::string const &prop,std::string const &default_value) const
+
+	std::string str_replace(
+		std::string const &sHaystack, std::string const &sNeedle, std::string const &sReplace, 
+		size_t nTimes)
 	{
-		properties_type::const_iterator p=properties.find(prop);
-		if(p==properties.end())
+		size_t found = 0, pos = 0, c = 0;
+		size_t len = sNeedle.size();
+		size_t replen = sReplace.size();
+		std::string input(sHaystack);
+		
+		do {
+			found = input.find(sNeedle, pos);
+			if (found == std::string::npos) {
+				break;
+			}
+			input.replace(found, len, sReplace);
+			pos = found + replen;
+			++c;
+		} while(!nTimes || c < nTimes);
+		
+		return input;
+	}
+
+	bool properties::has(std::string const &prop) const
+	{
+		return properties_.find(prop) != properties_.end();
+	}
+	std::string const &properties::get(std::string const &prop,std::string const &default_value) const
+	{
+		properties_type::const_iterator p=properties_.find(prop);
+		if(p==properties_.end()) {
 			return default_value;
-		else
+		}
+		else {
 			return p->second;
+		}
 	}
-
-	bool connection_info::has(std::string const &prop) const
+	int properties::get(std::string const &prop,int default_value) const
 	{
-		return properties.find(prop) != properties.end();
-	}
-
-	int connection_info::get(std::string const &prop,int default_value) const
-	{
-		properties_type::const_iterator p=properties.find(prop);
-		if(p==properties.end())
+		properties_type::const_iterator p=properties_.find(prop);
+		if(p==properties_.end())
 			return default_value;
 		std::istringstream ss;
 		ss.imbue(std::locale::classic());
@@ -180,5 +205,40 @@ namespace cppdb {
 		}
 		return val;
 	}
+
+	std::string properties::dump() const
+	{
+		properties_type::const_iterator p;
+		bool first = true;
+		std::string str = "{\n";
+		for(p=properties_.begin();p!=properties_.end();p++) {
+			if (!first)
+				str += ",\n";
+			else
+				first = false;
+			str+="\t{";
+			str+=str_replace(p->first, "\"", "\\\"");
+			str+="\"}, {\"";
+			str+=str_replace(p->second, "\"", "\\\"");
+			str+="\"}";
+		}
+		return str + "\n}";
+	}
+
+	std::string connection_info::conn_str(std::string const &delimiter, std::string (*formater)(std::string const &)) const
+	{
+		properties_type::const_iterator p;
+		std::string str;
+		for(p=properties_.begin();p!=properties_.end();p++) {
+			if(p->first.empty() || p->first[0]=='@')
+				continue;
+			str+=p->first;
+			str+="=";
+			str+=(formater ? formater(p->second) : p->second);
+			str+=delimiter;
+		}
+		return str;
+	}
+	
 
 }
