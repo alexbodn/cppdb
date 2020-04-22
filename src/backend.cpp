@@ -398,6 +398,15 @@ namespace cppdb {
 			}
 			return str;
 		}
+		std::string dialect::render_type(std::string const &name, std::vector<int> const &params) const
+		{
+			return render_type(
+				name, 
+				params.size() > 0 ? params[0] : -1, 
+				params.size() > 1 ? params[1] : -1
+			);
+		}
+
 		connection *driver::connect(connection_info const &cs)
 		{
 			return open(cs);

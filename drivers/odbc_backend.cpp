@@ -498,7 +498,7 @@ public:
 	{
 		if(at(col).first)
 			return false;
-		v = parse_time(at(col).second);
+		v = parse_datetime(at(col).second);
 		return true;
 	}
 	virtual bool is_null(int col)
@@ -583,7 +583,7 @@ class statement : public backend::statement {
 		}
 		void set(std::tm const &v)
 		{
-			value = cppdb::format_time(v);
+			value = cppdb::format_datetime(v);
 			null=false;
 			sqltype = SQL_C_TIMESTAMP;
 			ctype = SQL_C_CHAR;

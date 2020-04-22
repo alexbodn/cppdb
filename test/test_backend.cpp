@@ -59,6 +59,22 @@ void test0(cppdb::ref_ptr<cppdb::backend::connection> /*sql*/, std::string const
 	TEST(s == "XXjghugtghty");
 	s = cppdb::str_replace("ghghjghugtghty", "gh", "h12");
 	TEST(s == "h12h12jh12ugth12ty");
+
+	std::cout << "Test the string split and join routines" << std::endl;
+	std::string input = "aa_bb_cc";
+	std::string delim = "_";;
+	std::vector<std::string> output = cppdb::str_split(input, delim.c_str()[0]);
+	std::string result = cppdb::str_join(output, delim);
+	TEST(result == input);
+	std::string input2 = "aa bb cc \ndd";
+	std::vector<std::string> output2 = cppdb::str_split(input2);
+	std::string result2 = cppdb::str_join(output2, " ");
+	TEST(result2 == "aa bb cc dd");
+
+	std::cout << "Test the string replacement as python dict %" << std::endl;
+	std::string hay3 = "%19(aaa)abc %% %%123(aaa)x bla %%%-(aaa)p foo %+(aaa) bar (aaa)s xyz %%%%%%%(aaa)z $";
+	std::string result3 = "---bc %% %%123(aaa)x bla %%--- foo %+(aaa) bar (aaa)s xyz %%%%%%--- $";
+	TEST(result3 == cppdb::str_replace_format(hay3, "aaa", "---", 0));
 }
 
 void test1(cppdb::ref_ptr<cppdb::backend::connection> sql, std::string const &/*cs*/)

@@ -224,7 +224,7 @@ namespace cppdb {
 			{
 				if(do_isnull(col))
 					return false;
-				v=parse_time(PQgetvalue(res_,current_,col));
+				v=parse_datetime(PQgetvalue(res_,current_,col));
 				return true;
 			}
 			virtual bool is_null(int col)
@@ -383,7 +383,7 @@ namespace cppdb {
 			virtual void bind(int col,std::tm const &v) 
 			{
 				check(col);
-				params_values_[col-1]=cppdb::format_time(v);
+				params_values_[col-1]=cppdb::format_datetime(v);
 				params_set_[col-1]=text_param;
 			}
 			virtual void bind(int col,std::istream &in)
@@ -672,13 +672,11 @@ namespace cppdb {
 			dialect()
 			{
 				init();
-std::cout << "======dialect()" << keywords_.dump() << std::endl;
 			}
 			dialect(std::vector<std::pair<std::string, std::string>> const &kw)
 			{
 				init();
 				set_keywords(kw);
-std::cout << "======dialect(kw)" << keywords_.dump() << std::endl;
 			}
 		};
 

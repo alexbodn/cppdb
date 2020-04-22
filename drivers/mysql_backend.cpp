@@ -197,7 +197,7 @@ namespace unprep {
 			if(!s)
 				return false;
 			std::string tmp(s,len);
-			v = parse_time(tmp);
+			v = parse_datetime(tmp);
 			return true;
 		}
 		///
@@ -305,7 +305,7 @@ namespace unprep {
 			s.clear();
 			s.reserve(30);
 			s+='\'';
-			s+=cppdb::format_time(v);
+			s+=cppdb::format_datetime(v);
 			s+='\'';
 		}
 		virtual void bind(int col,std::istream &v)
@@ -711,7 +711,7 @@ namespace prep {
 			std::string tmp;
 			if(!fetch(col,tmp))
 				return false;
-			v = parse_time(tmp);
+			v = parse_datetime(tmp);
 			return true;
 		}
 		///
@@ -825,7 +825,7 @@ namespace prep {
 			}
 			void set(std::tm const &t)
 			{
-				set_str(cppdb::format_time(t));
+				set_str(cppdb::format_datetime(t));
 			}
 			void bind_it(MYSQL_BIND *b) 
 			{

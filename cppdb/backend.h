@@ -257,6 +257,7 @@ namespace cppdb {
 			/// render type with optional parameters in parantheses
 			///
 			virtual std::string render_type(std::string const &name, int param=-1, int param2=-1) const;
+			virtual std::string render_type(std::string const &name, std::vector<int> const &params) const;
 			///
 			/// Return name of the type for bigint
 			///
@@ -323,6 +324,13 @@ namespace cppdb {
 			virtual std::string create_table_suffix() const
 			{
 				return get_keyword("create_table_suffix", "");
+			}
+			///
+			/// Escape a string for inclusion in SQL query. 
+			///
+			virtual std::string escape(std::string const &s) const
+			{
+				return str_replace(s, "'", "''");
 			}
 		};
 		/// \endcond

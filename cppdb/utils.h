@@ -22,28 +22,35 @@
 #include <string>
 #include <ctime>
 #include <map>
+#include <vector>
 
 
 namespace cppdb {
 
 	///
-	/// \brief parse a string as time value.
+	/// \brief parse a string as date & time value.
 	/// 
 	/// Used by backend implementations;
 	///
+	CPPDB_API std::tm parse_date(char const *value);
 	CPPDB_API std::tm parse_time(char const *value);
+	CPPDB_API std::tm parse_datetime(char const *value);
 	///
-	/// \brief format a string as time value.
+	/// \brief format a string as date & time value.
 	/// 
 	/// Used by backend implementations;
 	///
+	CPPDB_API std::string format_date(std::tm const &v);
 	CPPDB_API std::string format_time(std::tm const &v);
+	CPPDB_API std::string format_datetime(std::tm const &v);
 	///
-	/// \brief parse a string as time value.
+	/// \brief parse a string as date & time value.
 	/// 
 	/// Used by backend implementations;
 	///
+	CPPDB_API std::tm parse_date(std::string const &v);
 	CPPDB_API std::tm parse_time(std::string const &v);
+	CPPDB_API std::tm parse_datetime(std::string const &v);
 
 	///
 	/// \brief Parse a connection string \a cs into driver name \a driver_name and list of properties \a props
@@ -66,12 +73,35 @@ namespace cppdb {
 						std::string &driver_name,
 						std::map<std::string,std::string> &props);
 	///
+	/// remove whitespace at both ends of a string
+	///
+	std::string str_trim(std::string const &s);
+	///
 	///replace nTimes occurences of sNeedle in sHaystack by sReplace
 	///if nTimes == 0, replace all occurences thereof
 	///
 	CPPDB_API std::string str_replace(
 						std::string const &sHaystack, std::string const &sNeedle, 
 						std::string const &sReplace, size_t nTimes=0);
+	///
+	/// replace all occurences of a python style variable to dict format
+	///
+	std::string str_replace_format(
+		std::string const &sHaystack, std::string const &sNeedle, 
+		std::string const &sReplace, 
+		std::string (*formater)(std::string const &)=NULL);
+	///
+	/// join the strings in the strings vector, delimiting by string delim
+	///
+	CPPDB_API std::string str_join(
+						std::vector<std::string> const &strings, 
+						std::string const &delim);
+	///
+	/// split the input string by the delimiter char delim, into a vector of strings
+	/// if delim not given, whitespace will be assumed
+	///
+	CPPDB_API std::vector<std::string> str_split(
+						const std::string &input, char delim=0);
 
 	///
 	/// \brief Class that represents parsed key value properties file
@@ -103,7 +133,14 @@ namespace cppdb {
 		{
 			properties_[key] = value;
 		}
+		///
+		/// Dump in a kind of json format
+		///
 		std::string dump() const;
+		///
+		/// String format using the values of properties
+		///
+		std::string format(std::string const &fmt, std::string (*formater)(std::string const &)=NULL) const;
 		
 		properties() {}
 		properties(properties_type const &props) : properties_(props) {}

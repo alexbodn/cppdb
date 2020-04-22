@@ -163,7 +163,7 @@ namespace cppdb {
 			{
 				if(do_is_null(col))
 					return false;
-				v=parse_time((char const *)(sqlite3_column_text(st_,col)));
+				v=parse_datetime((char const *)(sqlite3_column_text(st_,col)));
 				return true;
 			}
 			virtual bool is_null(int col)
@@ -250,7 +250,7 @@ namespace cppdb {
 			virtual void bind(int col,std::tm const &v)
 			{
 				reset_stat();
-				std::string tmp = cppdb::format_time(v);
+				std::string tmp = cppdb::format_datetime(v);
 				check_bind(sqlite3_bind_text(st_,col,tmp.c_str(),tmp.size(),SQLITE_TRANSIENT));
 			}
 			virtual void bind(int col,std::istream &v) 
