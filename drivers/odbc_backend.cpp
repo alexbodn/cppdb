@@ -1069,7 +1069,7 @@ public:
 	{
 			std::string eng=engine();
 			if(eng == "postgresql") prepared = true;
-		std::auto_ptr<statement> st(new statement(q,dbc_,wide_,prepared));
+		std::unique_ptr<statement> st(new statement(q,dbc_,wide_,prepared));
 		return st.release();		
 	}
 

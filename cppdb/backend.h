@@ -35,8 +35,6 @@
 #include <cppdb/pool.h>
 #endif
 
-#import <iostream>
-
 namespace cppdb {
 	class connection_info;
 	// Borland needs pool.h, but not this forward declaration.
@@ -213,7 +211,7 @@ namespace cppdb {
 			virtual ~result();
 		private:
 			struct data;
-			std::auto_ptr<data> d;
+			std::unique_ptr<data> d;
 		};
 
 		/// \cond INTERNAL	
@@ -525,7 +523,7 @@ namespace cppdb {
 			/// \endcond
 		private:
 			struct data;
-			std::auto_ptr<data> d;
+			std::unique_ptr<data> d;
 			statements_cache *cache_;
 			ref_ptr<connection> connection_;
 		};
@@ -544,7 +542,7 @@ namespace cppdb {
 			~statements_cache();
 		private:
 			struct data;
-			std::auto_ptr<data> d;
+			std::unique_ptr<data> d;
 		};
 
 		/// \endcond
@@ -787,7 +785,7 @@ namespace cppdb {
 		private:
 
 			struct data;
-			std::auto_ptr<data> d;
+			std::unique_ptr<data> d;
 			statements_cache cache_;
 			ref_ptr<loadable_driver> driver_;
 			ref_ptr<pool> pool_;

@@ -584,7 +584,7 @@ namespace cppdb {
 
 		struct data;
 
-		std::auto_ptr<data> d;
+		std::unique_ptr<data> d;
 
 		bool eof_;
 		bool fetched_;
@@ -943,7 +943,7 @@ namespace cppdb {
 		ref_ptr<backend::statement> stat_;
 		ref_ptr<backend::connection> conn_;
 		struct data;
-		std::auto_ptr<data> d;
+		std::unique_ptr<data> d;
 	};
 
 	///
@@ -1260,7 +1260,7 @@ namespace cppdb {
 
 	private:
 		struct data;
-		std::auto_ptr<data> d;
+		std::unique_ptr<data> d;
 		ref_ptr<backend::connection> conn_;
 	};
 
@@ -1295,7 +1295,7 @@ namespace cppdb {
 		struct data;
 		session *s_;
 		bool commited_;
-		std::auto_ptr<data> d;
+		std::unique_ptr<data> d;
 	};
 
 
