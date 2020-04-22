@@ -365,47 +365,6 @@ namespace cppdb {
 				driver.reset();
 			}
 		}
-		void dialect::set_keywords(std::vector<std::pair<std::string, std::string>> const &kw)
-		{
-			for (const std::pair<std::string, std::string> & pr : kw) {
-				set_keyword(pr.first, pr.second);
-			}
-		}
-		void dialect::init()
-		{
-			set_keywords({
-				{"datetime", "timestamp"},
-				{"blob", ""}
-			});
-		}
-		///
-		/// render type with optional parameters in parantheses
-		///
-		std::string dialect::render_type(std::string const &name, int param, int param2) const
-		{
-			std::string str = name;
-			std::transform(
-				str.begin(), str.end(), str.begin(),
-				[](unsigned char chr){ return std::tolower(chr); }
-			);
-			str = type_name(str);
-			if (param >= 0) {
-				str += ("(" + std::to_string(param));
-				if (param2 >= 0) {
-					str += (", " + std::to_string(param2));
-				}
-				str += ")";
-			}
-			return str;
-		}
-		std::string dialect::render_type(std::string const &name, std::vector<int> const &params) const
-		{
-			return render_type(
-				name, 
-				params.size() > 0 ? params[0] : -1, 
-				params.size() > 1 ? params[1] : -1
-			);
-		}
 
 		connection *driver::connect(connection_info const &cs)
 		{
