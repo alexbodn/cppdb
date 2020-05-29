@@ -155,6 +155,14 @@ namespace cppdb {
 			size_ = 0;
 		} // destroy outside mutex scope
 	}
+
+	void pool::clear_cache()
+	{
+		mutex::guard l(lock_);
+		for(pool_type::iterator p = pool_.begin();p!=pool_.end();++p) {
+			p->conn->clear_cache();
+		}
+	}
 }
 
 

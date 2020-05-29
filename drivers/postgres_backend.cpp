@@ -663,6 +663,7 @@ namespace cppdb {
 			void init()
 			{
 				set_keywords({
+					{"engine", "postgresql"},
 					{"type_autoincrement_pk", "serial primary key not null"},
 					{"blob", default_blob},
 					{"sequence_last", "select currval(?)"}
@@ -789,11 +790,11 @@ namespace cppdb {
 			{
 				PQfinish(conn_);
 			}
-			virtual std::string driver()
+			virtual std::string driver() const
 			{
 				return "postgresql";
 			}
-			virtual std::string engine()
+			virtual std::string engine() const
 			{
 				return "postgresql";
 			}
@@ -807,15 +808,13 @@ namespace cppdb {
 	} // backend
 } // cppdb
 
-cppdb::ref_ptr<cppdb::backend::dialect> postgresql_dialectp = new cppdb::postgresql::dialect();
-
 extern "C" {
 	CPPDB_DRIVER_API cppdb::backend::connection *cppdb_postgresql_get_connection(cppdb::connection_info const &cs)
 	{
 		return new cppdb::postgresql::connection(cs);
 	}
-	CPPDB_DRIVER_API void *cppdb_postgresql_get_dialect()
+	CPPDB_DRIVER_API cppdb::backend::dialect *cppdb_postgresql_get_dialect()
 	{
-		return (void *)&postgresql_dialectp;
+		return new cppdb::postgresql::dialect();
 	}
 }

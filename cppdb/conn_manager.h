@@ -64,6 +64,11 @@ namespace cppdb {
 		/// Collect all connections that were not used for long time and close them.
 		///
 		void gc();
+		///
+		/// Clear the statement cache of all connections in all pools
+		///
+		void clear_cache();
+
 	private:
 		struct data;
 		std::unique_ptr<data> d;

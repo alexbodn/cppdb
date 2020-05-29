@@ -16,17 +16,14 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 #define CPPDB_SOURCE
+#include <cppdb/dialect.h>
 #include <cppdb/backend.h>
-#include <cppdb/utils.h>
-#include <cppdb/pool.h>
 
 #include <map>
 #include <list>
 #include <algorithm>
 #include <cctype>
 #include <string>
-
-#include <iostream>
 
 namespace cppdb {
 	namespace backend {
@@ -40,6 +37,7 @@ namespace cppdb {
 		void dialect::init()
 		{
 			set_keywords({
+				{"engine", "generic"},
 				{"datetime", "timestamp"},
 				{"blob", ""}
 			});
@@ -71,6 +69,22 @@ namespace cppdb {
 				params.size() > 0 ? params[0] : -1, 
 				params.size() > 1 ? params[1] : -1
 			);
+		}
+		dialect::dialect()
+		{
+			init();
+		}
+		dialect::dialect(std::vector<std::pair<std::string, std::string>> const &kw)
+		{
+			init();
+			set_keywords(kw);
+		}
+		void dialect::dispose(dialect *d)
+		{
+			delete d;
+		}
+		dialect::~dialect()
+		{
 		}
 
 	} // backend

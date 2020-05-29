@@ -76,6 +76,11 @@ namespace cppdb {
 		///
 		void clear();
 
+		///
+		/// Clear the statement cache of all connections in the pool
+		///
+		void clear_cache();
+
 		/// \cond INTERNAL
 		void put(backend::connection *c_in);
 		/// \endcond

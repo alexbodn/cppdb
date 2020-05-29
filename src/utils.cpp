@@ -320,6 +320,11 @@ namespace cppdb {
 		return val;
 	}
 
+	void properties::set(std::string const &key, std::string const &value)
+	{
+		properties_[key] = value;
+	}
+
 	std::string properties::dump() const
 	{
 		properties_type::const_iterator p;
@@ -330,7 +335,7 @@ namespace cppdb {
 				str += ",\n";
 			else
 				first = false;
-			str+="\t{";
+			str+="\t{\"";
 			str+=str_replace(p->first, "\"", "\\\"");
 			str+="\"}, {\"";
 			str+=str_replace(p->second, "\"", "\\\"");

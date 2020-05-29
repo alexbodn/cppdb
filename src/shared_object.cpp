@@ -39,6 +39,10 @@
 				HMODULE m=(HMODULE)(h);
 				return (void *)GetProcAddress(m,sym);
 			}
+			char *dlerror (void)
+			{
+				return NULL;
+			}
 		}
 	}
 
@@ -53,14 +57,24 @@ namespace cppdb {
 	}
 	shared_object::~shared_object()
 	{
+		dlerror (); //reset error
 		dlclose(handle_);
+		char *error = dlerror ();
+		if (error){
+			std::cout << "dlclose error " << error << std::endl;
+		}
 	}
 	ref_ptr<shared_object> shared_object::open(std::string const &name)
 	{
 		ref_ptr<shared_object> dl;
+		dlerror ();
 		void *h=dlopen(name.c_str(),RTLD_LAZY);
 		if(!h) {
 			return dl;
+		}
+		char *error = dlerror ();
+		if (error){
+			std::cout << "dlopen error " << name << ' ' << error << std::endl;
 		}
 		try {
 			dl.reset(new shared_object(name,h));
@@ -69,7 +83,12 @@ namespace cppdb {
 		}
 		catch(...) {
 			if(h) {
+				dlerror ();
 				dlclose(h);
+				char *error = dlerror ();
+				if (error){
+					std::cout << "dlclose error loading " << name << ' ' << error << std::endl;
+				}
 			}
 			throw;
 		}

@@ -129,10 +129,7 @@ namespace cppdb {
 		///
 		/// set a property value
 		///
-		void set(std::string const &key, std::string const &value)
-		{
-			properties_[key] = value;
-		}
+		void set(std::string const &key, std::string const &value);
 		///
 		/// Dump in a kind of json format
 		///
@@ -144,6 +141,7 @@ namespace cppdb {
 		
 		properties() {}
 		properties(properties_type const &props) : properties_(props) {}
+		~properties() {}
 	protected:
 		///
 		/// The std::map of key value properties.

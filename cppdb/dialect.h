@@ -17,14 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 #ifndef CPPDB_DIALECT_H
 #define CPPDB_DIALECT_H
-#if 0
-#include <iosfwd>
-#include <ctime>
-#include <string>
-#include <memory>
-#include <map>
-#include <typeinfo>
-#endif
+
 #include <vector>
 #include <cppdb/defs.h>
 #include <cppdb/errors.h>
@@ -62,15 +55,9 @@ namespace cppdb {
 			}
 			virtual void init();
 		public:
-			dialect()
-			{
-				init();
-			}
-			dialect(std::vector<std::pair<std::string, std::string>> const &kw)
-			{
-				init();
-				set_keywords(kw);
-			}
+			dialect();
+			dialect(std::vector<std::pair<std::string, std::string>> const &kw);
+			~dialect();
 			///
 			/// render type with optional parameters in parantheses
 			///
@@ -150,6 +137,14 @@ namespace cppdb {
 			{
 				return str_replace(s, "'", "''");
 			}
+			///
+			/// expose all the keywords
+			///
+			properties const & get_keywords() const
+			{
+				return keywords_;
+			}
+			static void dispose(dialect *d);
 		};
 		/// \endcond
 

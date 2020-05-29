@@ -982,8 +982,7 @@ public:
 
 	connection(connection_info const &ci) :
 		backend::connection(ci),
-		ci_(ci),
-		dialect_(0)
+		ci_(ci)
 	{
 		ref_ptr<backend::driver> drv_ptr = cppdb::driver_manager::instance().find_driver(ci, engine());
 		if (drv_ptr) {
@@ -1096,11 +1095,11 @@ public:
 	{
 		throw not_supported_by_backend("cppcms::odbc:: string escaping is not supported");
 	}
-	virtual std::string driver() 
+	virtual std::string driver() const
 	{
 		return "odbc";
 	}
-	virtual std::string engine() 
+	virtual std::string engine() const
 	{
 		return ci_.get("@engine","unknown");
 	}
@@ -1123,7 +1122,7 @@ public:
 	{
 		dialect_ = d;
 	}
-	virtual ref_ptr<cppdb::backend::dialect> get_dialect()
+	virtual ref_ptr<cppdb::backend::dialect> get_dialect() const
 	{
 		if (!dialect_) {
 			std::string error = "cppdb::backend::odbc error: dialect '";
@@ -1137,7 +1136,6 @@ private:
 	SQLHDBC dbc_;
 	bool wide_;
 	connection_info ci_;
-	ref_ptr<cppdb::backend::dialect> dialect_;
 };
 
 
@@ -1149,7 +1147,7 @@ extern "C" {
 	{
 		return new cppdb::odbc_backend::connection(cs);
 	}
-	CPPDB_DRIVER_API void *cppdb_odbc_get_dialect()
+	CPPDB_DRIVER_API cppdb::backend::dialect *cppdb_odbc_get_dialect()
 	{
 		//odbc does not provide an SQL dialect. use the dialect of the engine
 		return NULL;

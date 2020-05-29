@@ -16,6 +16,8 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 #include <cppdb/frontend.h>
+#include <cppdb/driver_manager.h>
+#include <cppdb/conn_manager.h>
 #include <iostream>
 #include <stdlib.h>
 
@@ -95,6 +97,9 @@ int main(int argc,char **argv)
 		else
 			sql << "create table test ( id integer primary key, val varchar(100))" << cppdb::exec;
 		
+		timer tm;
+		
+		tm.start();
 		{
 			cppdb::transaction tr(sql);
 			for(int i=0;i<max_val;i++) {
@@ -102,12 +107,14 @@ int main(int argc,char **argv)
 			}
 			tr.commit();
 		}
-		
-		timer tm;
+		tm.stop();
+		std::cout << "inserted " << max_val << " records in " << tm.diff() << " seconds" << std::endl;
+		sql.clear_cache();
 
 		#define SELECT "select val from test where id = ?"
 		#define HELLO "Hello World"
 
+#if 0
 		tm.start();
 		for(int j=0;j<max_val * 10;j++) {
 			std::string v;
@@ -116,8 +123,12 @@ int main(int argc,char **argv)
 				throw std::runtime_error("Wrong");
 		}
 		tm.stop();
-		std::cout << "Passed " << tm.diff() << " seconds" << std::endl;
+		std::cout << "searched by index " << 10 * max_val << " times in " << tm.diff() << " seconds" << std::endl;
+		sql.clear_cache();
+#endif
 
+#if 0
+		// one std::string allocation for all the iterations, massive malloc reduction
 		tm.start();
 		std::string select(SELECT);
 		std::string hello(HELLO);
@@ -128,9 +139,14 @@ int main(int argc,char **argv)
 				throw std::runtime_error("Wrong");
 		}
 		tm.stop();
-		std::cout << "Passed " << tm.diff() << " seconds" << std::endl;
+		std::cout << "searched by index " << 10 * max_val << " times in " << tm.diff() << " seconds" << std::endl;
+		sql.clear_cache();
+#endif
 
+#if 1
+		// one string and one statement allocation with bind, further malloc reduction
 		tm.start();
+		{
 		std::string _hello(HELLO);
 		cppdb::statement stmt = sql.prepare(SELECT);
 		for(int j=max_val * 10;j>-1;--j) {
@@ -142,10 +158,17 @@ int main(int argc,char **argv)
 				throw std::runtime_error("didn't fetch");
 			if(v!=_hello)
 				throw std::runtime_error("Wrong");
-			//stmt.reset();
+		}
 		}
 		tm.stop();
-		std::cout << "Passed " << tm.diff() << " seconds" << std::endl;
+		std::cout << "searched by index " << 10 * max_val << " times in " << tm.diff() << " seconds" << std::endl;
+		sql.clear_cache();
+#endif
+		
+		sql.close();
+		cppdb::connections_manager::instance().clear_cache();
+		cppdb::connections_manager::instance().gc();
+		cppdb::driver_manager::instance().collect_unused();
 	}
 	catch(std::exception const &e) {
 		std::cerr << e.what() << std::endl;

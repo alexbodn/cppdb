@@ -439,7 +439,7 @@ namespace cppdb {
 			driver(driver const &);
 			void operator=(driver const &);
 		public:
-			driver() {}
+			driver() : dialect_(0) {}
 			virtual ~driver() {}
 			///
 			/// Return true if the driver in use (i.e. if there is any open connection exist (connection object)
@@ -458,7 +458,15 @@ namespace cppdb {
 			///
 			/// Get the engine dialect
 			///
-			virtual ref_ptr<cppdb::backend::dialect> get_dialect();
+			virtual ref_ptr<cppdb::backend::dialect> get_dialect() const
+			{
+				if (!dialect_) {
+					throw not_supported_by_backend("cppdb::backend::driver: no dialect implemented by driver");
+				}
+				return dialect_;
+			}
+		protected:
+			ref_ptr<cppdb::backend::dialect> dialect_;
 		};
 	
 		///
@@ -474,11 +482,6 @@ namespace cppdb {
 			///
 			virtual bool in_use();
 			virtual ~loadable_driver() {}
-
-			///
-			/// Creates a new connection object and keeps track of them for handing (in_use) correctly
-			///
-			virtual connection *connect(connection_info const &cs);
 		};
 
 		extern "C" {
@@ -489,7 +492,7 @@ namespace cppdb {
 			///
 			/// This function type is the function to fetch the dialect from the shared objects when loaded
 			///
-			typedef void *cppdb_backend_get_dialect_function();
+			typedef cppdb::backend::dialect *cppdb_backend_get_dialect_function();
 		}
 
 
@@ -510,7 +513,7 @@ namespace cppdb {
 			///
 			/// Create a new driver that creates connection using function \a c
 			///
-			static_driver(connect_function_type c);
+			static_driver(connect_function_type c, get_dialect_function_type d);
 			~static_driver();
 			///
 			/// Always returns true as this driver cannot be unloaded
@@ -520,16 +523,8 @@ namespace cppdb {
 			/// Create new connection - basically calls the function to create the object
 			///
 			backend::connection *open(connection_info const &ci);
-			///
-			/// Get the engine dialect
-			///
-			virtual ref_ptr<cppdb::backend::dialect> get_dialect() const
-			{
-				return *(ref_ptr<cppdb::backend::dialect> *)get_dialect_();
-			}
 		private:
 			connect_function_type connect_;
-			get_dialect_function_type get_dialect_;
 		};
 
 
@@ -545,8 +540,8 @@ namespace cppdb {
 			virtual ~connection();
 			/// \cond INTERNAL
 			void set_pool(ref_ptr<pool> p);
-			ref_ptr<pool> get_pool(); 
-			void set_driver(ref_ptr<loadable_driver> drv);
+			ref_ptr<pool> get_pool();
+			void set_driver(ref_ptr<cppdb::backend::driver> drv);
 			static void dispose(connection *c);
 			ref_ptr<statement> prepare(std::string const &q);
 			ref_ptr<statement> get_prepared_statement(std::string const &q);
@@ -595,12 +590,12 @@ namespace cppdb {
 			///
 			/// Get the name of the driver, for example sqlite3, odbc
 			///
-			virtual std::string driver() = 0;
+			virtual std::string driver() const = 0;
 			///
 			/// Get the name of the SQL Server, for example sqlite3, mssql, oracle, differs from driver() when
 			/// the backend supports multiple databases like odbc backend.
 			///
-			virtual std::string engine() = 0;
+			virtual std::string engine() const = 0;
 
 			///
 			/// Clear statements cache
@@ -653,7 +648,7 @@ namespace cppdb {
 			///
 			/// Get the engine dialect
 			///
-			virtual ref_ptr<cppdb::backend::dialect> get_dialect()
+			virtual ref_ptr<cppdb::backend::dialect> get_dialect() const
 			{
 				return (dialect_) ? dialect_ : driver_->get_dialect();
 			}
@@ -670,7 +665,7 @@ namespace cppdb {
 			struct data;
 			std::unique_ptr<data> d;
 			statements_cache cache_;
-			ref_ptr<loadable_driver> driver_;
+			ref_ptr<cppdb::backend::driver> driver_;
 			ref_ptr<pool> pool_;
 			unsigned default_is_prepared_ : 1;
 			unsigned once_called_ : 1;

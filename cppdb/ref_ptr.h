@@ -176,6 +176,40 @@ namespace cppdb {
 	private:
 		atomic_counter count_;
 	};
+} //cppdb
+
+#include <iostream>
+namespace cppdb {
+	// variation of ref_counted to print traced objects
+	class ref_counted_tracing : public ref_counted {
+	public:
+		ref_counted_tracing()
+		{
+			std::cout << "new[" << this << ',' << ref_counted::use_count() << ']' << std::endl;
+		}
+		long add_ref()
+		{
+			long count = ref_counted::add_ref();
+			std::cout << "add_ref[" << this << ',' << count << ']' << std::endl;
+			return count;
+		}
+		long use_count() const
+		{
+			long count = ref_counted::use_count();
+			std::cout << "use_count[" << this << ',' << count << ']' << std::endl;
+			return count;
+		}
+		long del_ref()
+		{
+			long count = ref_counted::del_ref();
+			std::cout << "del_ref[" << this << ',' << count << ']' << std::endl;
+			return count;
+		}
+		~ref_counted_tracing()
+		{
+			std::cout << "deleted[" << this << ']' << std::endl;
+		}
+	};
 } // cppdb
 
 #if __cplusplus <= 199711L

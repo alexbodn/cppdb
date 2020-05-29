@@ -380,6 +380,7 @@ namespace cppdb {
 			void init()
 			{
 				set_keywords({
+					{"engine", "sqlite3"},
 					{"bigint", "integer"},
 					{"type_autoincrement_pk", "integer primary key autoincrement not null"},
 					{"blob", "blob"},
@@ -496,11 +497,11 @@ namespace cppdb {
 				}
 				return result;
 			}
-			virtual std::string driver()
+			virtual std::string driver() const
 			{
 				return "sqlite3";
 			}
-			virtual std::string engine()
+			virtual std::string engine() const
 			{
 				return "sqlite3";
 			}
@@ -518,15 +519,13 @@ namespace cppdb {
 	} // sqlite3_backend
 } // cppdb
 
-cppdb::ref_ptr<cppdb::backend::dialect> sqlite3_dialectp = new cppdb::sqlite3_backend::dialect();
-
 extern "C" {
 	CPPDB_DRIVER_API cppdb::backend::connection *cppdb_sqlite3_get_connection(cppdb::connection_info const &cs)
 	{
 		return new cppdb::sqlite3_backend::connection(cs);
 	}
-	CPPDB_DRIVER_API void *cppdb_sqlite3_get_dialect()
+	CPPDB_DRIVER_API cppdb::backend::dialect *cppdb_sqlite3_get_dialect()
 	{
-		return (void *)&sqlite3_dialectp;
+		return new cppdb::sqlite3_backend::dialect();
 	}
 }

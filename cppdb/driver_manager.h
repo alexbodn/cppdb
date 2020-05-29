@@ -46,7 +46,7 @@ namespace cppdb {
 		///
 		/// Install new driver \a drv named \a name to the manager.
 		///
-		void install_driver(std::string const &name,ref_ptr<backend::driver> drv);
+		ref_ptr<backend::driver> install_driver(std::string const &name,ref_ptr<backend::driver> drv, bool force=false);
 		///
 		/// Unload all drivers that have no more open connections.
 		///
@@ -72,7 +72,10 @@ namespace cppdb {
 		/// Create a new connection object using connection string \a connectoin_string
 		///
 		backend::connection *connect(std::string const &connection_string);
-		ref_ptr<backend::driver> find_driver(connection_info const &conn, std::string const driver_name="");
+		///
+		/// find a driver using parsed connection string \a conn, optionally forcing the driver name
+		///
+		ref_ptr<backend::driver> find_driver(connection_info const &conn, std::string const &driver_name=std::string());
 
 	private:
 		driver_manager(driver_manager const &);
@@ -83,7 +86,7 @@ namespace cppdb {
 		#endif
 		driver_manager();
 		
-		ref_ptr<backend::driver> load_driver(connection_info const &ci, std::string const driver_name="");
+		ref_ptr<backend::driver> load_driver(connection_info const &ci, std::string const &driver_name=std::string());
 
 		typedef std::map<std::string,ref_ptr<backend::driver> > drivers_type;
 		std::vector<std::string> search_paths_;

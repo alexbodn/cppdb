@@ -45,8 +45,8 @@ namespace cppdb {
 	ref_ptr<backend::connection> connections_manager::open(std::string const &cs)
 	{
 		ref_ptr<pool> p;
-		/// seems we may be using pool
-		if(cs.find("@pool_size")!=std::string::npos) {
+		connection_info ci(cs);
+		if(ci.get("@pool_size",0)!=0) {
 			mutex::guard l(lock_);
 			connections_type::iterator pool_ptr = connections_.find(cs);
 			if(pool_ptr!=connections_.end())
@@ -57,7 +57,6 @@ namespace cppdb {
 			return p->open();
 		}
 		else {
-			connection_info ci(cs);
 			return open(ci);
 		}
 	}
@@ -108,5 +107,13 @@ namespace cppdb {
 
 	}
 		
+
+	void connections_manager::clear_cache()
+	{
+		mutex::guard l(lock_);
+		for(connections_type::iterator p=connections_.begin();p!=connections_.end();++p) {
+			p->second->clear_cache();
+		}
+	}
 
 } // cppdb

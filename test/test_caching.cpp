@@ -109,7 +109,7 @@ void test_driver_manager()
 void test_stmt_cache()
 {
 	cppdb::ref_ptr<cppdb::backend::connection> c;
-	cppdb::ref_ptr<cppdb::backend::statement> s1,s2,s3;
+	cppdb::ref_ptr<cppdb::backend::statement> s1,s2;
 
 	cppdb::driver_manager &dm = cppdb::driver_manager::instance();
 	dm.install_driver("dummy",new dummy::loadable_driver());
@@ -138,7 +138,9 @@ void test_stmt_cache()
 	c->clear_cache();
 	TEST(dummy::statements==0);
 	s1=c->prepare("test");
+	TEST(dummy::statements==1);
 	s1.reset();
+	TEST(dummy::statements==1);
 	s1=c->prepare("test");
 	TEST(dummy::statements==1);
 	s1=c->prepare("test1");
@@ -149,6 +151,27 @@ void test_stmt_cache()
 	s2.reset();
 	TEST(dummy::statements==2);
 
+	c->clear_cache();
+	c.reset();
+	TEST(dummy::connections==0);
+
+	c=dm.connect("dummy:@use_prepared=on;@stmt_cache_size=0");
+	TEST(dummy::connections==1);
+	s1=c->prepare("test1");
+	TEST(dummy::statements==1);
+	s2=c->prepare("test2");
+	TEST(dummy::statements==2);
+	s1.reset();
+	TEST(dummy::statements==2);
+	s2.reset();
+	TEST(dummy::statements==1);
+
+	c->clear_cache();
+	c.reset();
+	TEST(dummy::connections==0);
+
+	dm.collect_unused();
+	TEST(dummy::drivers==0);
 }
 
 int main()

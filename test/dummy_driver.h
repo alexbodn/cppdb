@@ -137,8 +137,8 @@ namespace dummy {
 		virtual std::string escape(std::string const &) { throw cppdb::not_supported_by_backend("not supported"); }
 		virtual std::string escape(char const *) { throw cppdb::not_supported_by_backend("not supported"); }
 		virtual std::string escape(char const *,char const *) { throw cppdb::not_supported_by_backend("not supported"); }
-		virtual std::string driver() { return "dummy"; }
-		virtual std::string engine() { return "dummy"; }
+		virtual std::string driver() const { return "dummy"; }
+		virtual std::string engine() const { return "dummy"; }
 		
 	};
 

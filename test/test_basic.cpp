@@ -20,6 +20,12 @@
 #include <iostream>
 #include <sstream>
 
+// includes for this test alone
+#include <cppdb/utils.h>
+#include <cppdb/driver_manager.h>
+#include <cppdb/conn_manager.h>
+
+
 #define TEST(x) do { if(x) break; std::ostringstream ss; ss<<"Failed in " << __LINE__ <<' '<< #x; throw std::runtime_error(ss.str()); } while(0)
 
 class my_specific_a : public cppdb::connection_specific_data {
@@ -153,7 +159,6 @@ int main(int argc,char **argv)
 		stat.clear();
 		TEST(stat.empty());
 		TEST(cppdb::statement().empty());
-
 		sql.reset_specific(new my_specific_a(10));
 		TEST(sql.get_specific<my_specific_b>()==0);
 		TEST(sql.get_specific<my_specific_a>()!=0);
@@ -179,12 +184,20 @@ int main(int argc,char **argv)
 		TEST(call_counter == 1);
 		sql.once(&caller);
 		TEST(call_counter == 1);
+		sql.clear_cache();
 		sql.close();
-		bool have_pool = cs.find("@pool_size")!=std::string::npos;
+		cppdb::connection_info ci(cs);
+		bool have_pool = ci.get("@pool_size",0);
 		sql.open(cs);
 		TEST(sql.once_called()==have_pool);
 		sql.once(functor_caller());
-		TEST(have_pool ? call_counter == 1 : call_counter == 2);
+		TEST(call_counter == (have_pool ? 1 : 2));
+		
+//		sql.clear_cache();
+		sql.close();
+		cppdb::connections_manager::instance().clear_cache();
+		cppdb::connections_manager::instance().gc();
+		cppdb::driver_manager::instance().collect_unused();
 	}
 	catch(std::exception const &e) {
 		std::cerr << "ERROR: " << e.what() << std::endl;

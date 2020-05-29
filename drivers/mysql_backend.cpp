@@ -1165,6 +1165,7 @@ class dialect : public backend::dialect {
 	void init()
 	{
 		set_keywords({
+			{"engine", "mysql"},
 			{"type_autoincrement_pk", "integer primary key auto_increment not null"},
 			{"datetime", "datetime default null"},
 			{"blob", "blob"},
@@ -1419,7 +1420,7 @@ public:
 	///
 	/// Get the name of the driver, for example sqlite3, odbc
 	///
-	virtual std::string driver() 
+	virtual std::string driver() const
 	{
 		return "mysql";
 	}
@@ -1427,7 +1428,7 @@ public:
 	/// Get the name of the SQL Server, for example sqlite3, mssql, oracle, differs from driver() when
 	/// the backend supports multiple databases like odbc backend.
 	///
-	virtual std::string engine()
+	virtual std::string engine() const
 	{
 		return "mysql";
 	}
@@ -1453,15 +1454,13 @@ private:
 } // backend
 } // cppdb
 
-cppdb::ref_ptr<cppdb::backend::dialect> mysql_dialectp = new cppdb::mysql_backend::dialect();
-
 extern "C" {
 	CPPDB_DRIVER_API cppdb::backend::connection *cppdb_mysql_get_connection(cppdb::connection_info const &cs)
 	{
 		return new cppdb::mysql_backend::connection(cs);
 	}
-	CPPDB_DRIVER_API void *cppdb_mysql_get_dialect()
+	CPPDB_DRIVER_API cppdb::backend::dialect *cppdb_mysql_get_dialect()
 	{
-		return (void *)&mysql_dialectp;
+		return new cppdb::mysql_backend::dialect();
 	}
 }

@@ -26,8 +26,6 @@
 #include <cctype>
 #include <string>
 
-#include <iostream>
-
 namespace cppdb {
 	namespace backend {
 		//result
@@ -118,8 +116,8 @@ namespace cppdb {
 					lru.push_front(p);
 					p->second.lru_ptr = lru.begin();
 				}
-				else {
-					if(size > 0 && size >= max_size) {
+				else if(max_size > 0) {
+					if(size >= max_size) {
 						statements.erase(lru.back());
 						lru.pop_back();
 						size--;
@@ -160,7 +158,7 @@ namespace cppdb {
 		}
 		void statements_cache::set_size(size_t n)
 		{
-			if(n!=0 && !active()) {
+			if(!active()) {
 				d.reset(new data());
 				d->max_size = n;
 			}
@@ -170,9 +168,11 @@ namespace cppdb {
 			if(!active()) {
 				delete p_in;
 			}
+			else {
 			ref_ptr<statement> p(p_in);
 			p->reset();
 			d->insert(p);
+			}
 		}
 		ref_ptr<statement> statements_cache::fetch(std::string const &q)
 		{
@@ -251,9 +251,9 @@ namespace cppdb {
 			dialect_(0)
 		{
 			int cache_size = info.get("@stmt_cache_size",64);
-			if(cache_size > 0) {
+			//if(cache_size > 0) {
 				cache_.set_size(cache_size);
-			}
+			//}
 			sequence_last_ = info.get("@sequence_last", "");
 			std::string def_is_prep = info.get("@use_prepared","on");
 			if(def_is_prep == "on")
@@ -329,9 +329,9 @@ namespace cppdb {
 		{
 			pool_ = p;
 		}
-		void connection::set_driver(ref_ptr<loadable_driver> p)
+		void connection::set_driver(ref_ptr<cppdb::backend::driver> drv)
 		{
-			driver_ = p;
+			driver_ = drv;
 		}
 		void connection::clear_cache()
 		{
@@ -360,7 +360,7 @@ namespace cppdb {
 				c->clear_cache();
 				// Make sure that driver would not be
 				// destoryed destructor of connection exits
-				ref_ptr<loadable_driver> driver = c->driver_;
+				ref_ptr<cppdb::backend::driver> driver = c->driver_;
 				delete c;
 				driver.reset();
 			}
@@ -368,25 +368,19 @@ namespace cppdb {
 
 		connection *driver::connect(connection_info const &cs)
 		{
-			return open(cs);
-		}
-		ref_ptr<cppdb::backend::dialect> driver::get_dialect()
-		{
-			throw cppdb_error("cppdb::backend::driver: this driver does not implement a dialog");
+			connection *c = open(cs);
+			c->set_driver(this);
+			return c;
 		}
 		bool loadable_driver::in_use()
 		{
 			return use_count() > 1;
 		}
-		connection *loadable_driver::connect(connection_info const &cs)
+		static_driver::static_driver(connect_function_type c, get_dialect_function_type d) : connect_(c)
 		{
-			connection *c = open(cs);
-			c->set_driver(ref_ptr<loadable_driver>(this));
-			return c;
-		}
-
-		static_driver::static_driver(connect_function_type c) : connect_(c)
-		{
+			if (d) {
+				dialect_ = d();
+			}
 		}
 		static_driver::~static_driver()
 		{

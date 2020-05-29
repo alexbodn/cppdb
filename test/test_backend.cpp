@@ -17,6 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 #include <cppdb/backend.h>
 #include <cppdb/utils.h>
+#include <cppdb/ref_ptr.h>
 #include <cppdb/driver_manager.h>
 #include <sstream>
 #include <iostream>
@@ -75,6 +76,52 @@ void test0(cppdb::ref_ptr<cppdb::backend::connection> /*sql*/, std::string const
 	std::string hay3 = "%19(aaa)abc %% %%123(aaa)x bla %%%-(aaa)p foo %+(aaa) bar (aaa)s xyz %%%%%%%(aaa)z $";
 	std::string result3 = "---bc %% %%123(aaa)x bla %%--- foo %+(aaa) bar (aaa)s xyz %%%%%%--- $";
 	TEST(result3 == cppdb::str_replace_format(hay3, "aaa", "---", 0));
+}
+
+void test05(cppdb::ref_ptr<cppdb::backend::connection> /*sql*/, std::string const &/*cs*/)
+{
+	std::cout << "Test the ref_ptr" << std::endl;
+
+	class ref_test : public cppdb::ref_counted {
+	};
+	
+	{
+		ref_test *_a = new ref_test();
+		std::cout << "a->use_count() = " << _a->use_count() << std::endl;
+		TEST(_a->use_count() == 0);
+		std::cout << "a = " << _a << std::endl;
+		cppdb::ref_ptr<ref_test> a(_a);
+	}
+
+	ref_test *_a = new ref_test();
+	ref_test *_b = new ref_test();
+	std::cout << "a = " << _a << std::endl;
+	std::cout << "b = " << _b << std::endl;
+	TEST(_a->use_count() == 0);
+	cppdb::ref_ptr<ref_test> a(_a);
+	TEST(_a->use_count() == 1);
+	cppdb::ref_ptr<ref_test> b(_b);
+	TEST(_b->use_count() == 1);
+	
+	{
+		std::map<std::string, cppdb::ref_ptr<ref_test>> map;
+		map["A"] = a;
+		TEST(_a->use_count() == 2);
+		map["A"] = b;
+		TEST(_a->use_count() == 1);
+		TEST(_b->use_count() == 2);
+		map["B"] = b;
+		TEST(_b->use_count() == 3);
+		map["C"] = b;
+		TEST(_b->use_count() == 4);
+		cppdb::ref_ptr<ref_test> b(_b);
+		TEST(_b->use_count() == 5);
+		// map and b are destroyed
+	}
+	std::cout << "a->use_count() = " << _a->use_count() << std::endl;
+	std::cout << "b->use_count() = " << _b->use_count() << std::endl;
+	TEST(_a->use_count() == 1);
+	TEST(_b->use_count() == 1);
 }
 
 void test1(cppdb::ref_ptr<cppdb::backend::connection> sql, std::string const &/*cs*/)
@@ -137,7 +184,7 @@ void test1(cppdb::ref_ptr<cppdb::backend::connection> sql, std::string const &/*
 	stmt->exec();
 	std::cout << "Unicode Test" << std::endl;
 	if(sql->engine()!="mssql" || wide_api) {
-		std::string test_string = "Pease שלום Мир ﺱﻼﻣ";
+		std::string test_string = "Peace שלום Мир ﺱﻼﻣ";
 		stmt = sql->prepare("insert into test(x,y) values(?,?)");
 		stmt->bind(1,15);
 		stmt->bind(2,test_string);
@@ -759,7 +806,15 @@ void test10(cppdb::ref_ptr<cppdb::backend::connection> sql, std::string const &c
 	test_dialect = drv_ptr->get_dialect();
 	TEST(engine != "odbc"); // this is not an engine
 	TEST((conn_dialect));
-	TEST(conn_dialect == test_dialect);
+	if (sql->driver() == "odbc") {
+		TEST(conn_dialect->get_keywords().dump() == test_dialect->get_keywords().dump());
+	}
+	else if (engine == "postgresql" && !pq_oid) {
+		TEST(conn_dialect->get_keywords().dump() != test_dialect->get_keywords().dump()); // bytea overrides dialect
+	}
+	else {
+		TEST(conn_dialect.get() == test_dialect.get());
+	}
 }
 
 
@@ -779,9 +834,9 @@ void run_test(void (*func)(cppdb::ref_ptr<cppdb::backend::connection>, std::stri
 
 void test(std::string conn_str)
 {
-	cppdb::ref_ptr<cppdb::backend::connection> sql(cppdb::driver_manager::instance().connect(conn_str));
+	cppdb::driver_manager &dm = cppdb::driver_manager::instance();
+	cppdb::ref_ptr<cppdb::backend::connection> sql(dm.connect(conn_str));
 	cppdb::ref_ptr<cppdb::backend::statement> stmt;
-	cppdb::ref_ptr<cppdb::backend::result> res;
 	wide_api = (sql->driver()=="odbc" && conn_str.find("utf=wide")!=std::string::npos);
 	
 	std::cout << "Basic setup" << std::endl;
@@ -794,6 +849,7 @@ void test(std::string conn_str)
 	}
 
 	run_test(test0,sql);
+	run_test(test05,sql);
 	run_test(test1,sql);
 	run_test(test2,sql);
 	run_test(test3,sql);
@@ -804,6 +860,10 @@ void test(std::string conn_str)
 	run_test(test8,sql);
 	run_test(test9,sql);
 	run_test(test10,sql,conn_str);
+	
+	sql->clear_cache();
+	sql.reset();
+	dm.collect_unused();
 }
 
 

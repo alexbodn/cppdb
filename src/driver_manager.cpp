@@ -28,19 +28,19 @@
 extern "C" {
 	#ifdef CPPDB_WITH_SQLITE3 
 	cppdb::backend::connection *cppdb_sqlite3_get_connection(cppdb::connection_info const &cs);
-	void *cppdb_sqlite3_get_dialect();
+	cppdb::backend::dialect *cppdb_sqlite3_get_dialect();
 	#endif
 	#ifdef CPPDB_WITH_PQ 
 	cppdb::backend::connection *cppdb_postgresql_get_connection(cppdb::connection_info const &cs);
-	void *cppdb_postgresql_get_dialect();
+	cppdb::backend::dialect *cppdb_postgresql_get_dialect();
 	#endif
 	#ifdef CPPDB_WITH_ODBC
 	cppdb::backend::connection *cppdb_odbc_get_connection(cppdb::connection_info const &cs);
-	void *cppdb_odbc_get_dialect();
+	cppdb::backend::dialect *cppdb_odbc_get_dialect();
 	#endif
 	#ifdef CPPDB_WITH_MYSQL
 	cppdb::backend::connection *cppdb_mysql_get_connection(cppdb::connection_info const &cs);
-	void *cppdb_mysql_get_dialect();
+	cppdb::backend::dialect *cppdb_mysql_get_dialect();
 	#endif
 }
 
@@ -53,9 +53,9 @@ namespace cppdb {
 	class so_driver : public backend::loadable_driver {
 	public:
 		so_driver(std::string const &name,std::vector<std::string> const &so_list) :
-			connect_(0),
-			get_dialect_(0)
+			connect_(0)
 		{
+			get_dialect_function_type get_dialect_ = NULL;
 			std::string connect_symbol_name = "cppdb_" + name + "_get_connection";
 			std::string get_dialect_symbol_name = "cppdb_" + name + "_get_dialect";
 			for(unsigned i=0;i<so_list.size();i++) {
@@ -75,18 +75,20 @@ namespace cppdb {
 			if(!get_dialect_) {
 				throw cppdb_error("cppdb::driver failed to load dialect");
 			}
+			dialect_ = get_dialect_();
 		}
 		virtual backend::connection *open(connection_info const &ci)
 		{
 			return connect_(ci);
 		}
-		virtual ref_ptr<cppdb::backend::dialect> get_dialect()
+		~so_driver()
 		{
-			return *(ref_ptr<cppdb::backend::dialect> *)get_dialect_();
+			// after so_ will be unloaded, the dialect, allocated in so_, 
+			// won't be freeable and it's deletion will segfault
+			dialect_.reset();
 		}
 	private:
 		connect_function_type connect_;
-		get_dialect_function_type get_dialect_;
 		ref_ptr<shared_object> so_;
 	};
 	
@@ -100,26 +102,23 @@ namespace cppdb {
 	{
 		ref_ptr<backend::driver> drv_ptr = find_driver(conn);
 		if (!drv_ptr) {
-			throw cppdb_error("cppdb::driver failed to find driver " + conn.driver);
+			throw cppdb_error("cppdb::driver_manager failed to find driver " + conn.driver);
 		}
 		return drv_ptr->connect(conn);
 	}
-	ref_ptr<backend::driver> driver_manager::find_driver(connection_info const &conn, std::string driver_name)
+	ref_ptr<backend::driver> driver_manager::find_driver(connection_info const &conn, std::string const &driver_name)
 	{
 		ref_ptr<backend::driver> drv_ptr;
+		std::string const &dr_name = driver_name.empty() ? conn.driver : driver_name;
 		drivers_type::iterator p;
 		{ // get driver
-			mutex::guard lock(lock_);
-			if (driver_name.empty()) {
-				driver_name = conn.driver;
-			}
-			p=drivers_.find(driver_name);
+			p=drivers_.find(dr_name);
 			if(p!=drivers_.end()) {
 				drv_ptr = p->second;
 			}
 			else {
-				drv_ptr = load_driver(conn, driver_name);
-				drivers_[conn.driver] = drv_ptr;	
+				drv_ptr = load_driver(conn, dr_name);
+				return install_driver(dr_name, drv_ptr);
 			}
 		}
 		return drv_ptr;
@@ -173,7 +172,7 @@ namespace cppdb {
 	#endif
 
 
-	ref_ptr<backend::driver> driver_manager::load_driver(connection_info const &conn, std::string const driver_name)
+	ref_ptr<backend::driver> driver_manager::load_driver(connection_info const &conn, std::string const &driver_name)
 	{
 		std::vector<std::string> so_names;
 		std::string module;
@@ -188,7 +187,7 @@ namespace cppdb {
 				sep = next;
 			}
 		}
-		std::string dr_name = driver_name.empty() ? conn.driver : driver_name;
+		std::string const &dr_name = driver_name.empty() ? conn.driver : driver_name;
 		if(!(module=conn.get("@module")).empty()) {
 			so_names.push_back(module);
 		}
@@ -209,13 +208,18 @@ namespace cppdb {
 		return drv;
 	}
 
-	void driver_manager::install_driver(std::string const &name,ref_ptr<backend::driver> drv)
+	ref_ptr<backend::driver> driver_manager::install_driver(std::string const &name,ref_ptr<backend::driver> drv, bool force)
 	{
+		if (!force && drivers_.count(name)) {
+			return drivers_[name];
+		}
 		if(!drv) {
 			throw cppdb_error("cppdb::driver_manager::install_driver: Can't install empty driver");
 		}
+		// minimalize the need to lock
 		mutex::guard lock(lock_);
 		drivers_[name]=drv;
+		return drv;
 	}
 
 	driver_manager::driver_manager() : 
@@ -255,22 +259,22 @@ namespace cppdb {
 				driver_manager::instance(); 
 				#ifdef CPPDB_WITH_SQLITE3 
 				driver_manager::instance().install_driver(
-					"sqlite3",new backend::static_driver(cppdb_sqlite3_get_connection)
+					"sqlite3",new backend::static_driver(cppdb_sqlite3_get_connection, cppdb_sqlite3_get_dialect)
 				);
 				#endif
 				#ifdef CPPDB_WITH_ODBC
 				driver_manager::instance().install_driver(
-					"odbc",new backend::static_driver(cppdb_odbc_get_connection)
+					"odbc",new backend::static_driver(cppdb_odbc_get_connection, cppdb_odbc_get_dialect)
 				);
 				#endif
 				#ifdef CPPDB_WITH_PQ 
 				driver_manager::instance().install_driver(
-					"postgresql",new backend::static_driver(cppdb_postgresql_get_connection)
+					"postgresql",new backend::static_driver(cppdb_postgresql_get_connection, cppdb_postgresql_get_dialect)
 				);
 				#endif
 				#ifdef CPPDB_WITH_MYSQL
 				driver_manager::instance().install_driver(
-					"mysql",new backend::static_driver(cppdb_mysql_get_connection)
+					"mysql",new backend::static_driver(cppdb_mysql_get_connection, cppdb_mysql_get_dialect)
 				);
 				#endif
 			}
