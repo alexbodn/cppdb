@@ -114,7 +114,7 @@ int main(int argc,char **argv)
 		#define SELECT "select val from test where id = ?"
 		#define HELLO "Hello World"
 
-#if 0
+#if 1
 		tm.start();
 		for(int j=0;j<max_val * 10;j++) {
 			std::string v;
@@ -127,7 +127,7 @@ int main(int argc,char **argv)
 		sql.clear_cache();
 #endif
 
-#if 0
+#if 1
 		// one std::string allocation for all the iterations, massive malloc reduction
 		tm.start();
 		std::string select(SELECT);
